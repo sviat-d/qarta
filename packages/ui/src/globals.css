@@ -1,0 +1,23 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Brand colors — override these from Figma design */
+    --color-brand-50: #f0f4ff;
+    --color-brand-100: #dbe4ff;
+    --color-brand-200: #bac8ff;
+    --color-brand-300: #91a7ff;
+    --color-brand-400: #748ffc;
+    --color-brand-500: #5c7cfa;
+    --color-brand-600: #4c6ef5;
+    --color-brand-700: #4263eb;
+    --color-brand-800: #3b5bdb;
+    --color-brand-900: #364fc7;
+
+    --color-background: #ffffff;
+    --color-foreground: #0f172a;
+    --color-muted: #64748b;
+  }
+}

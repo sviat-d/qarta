@@ -1,0 +1,29 @@
+{
+  "name": "@qarta/ui",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./button": "./src/button.tsx",
+    "./input": "./src/input.tsx",
+    "./globals.css": "./src/globals.css"
+  },
+  "scripts": {
+    "type-check": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@radix-ui/react-slot": "^1.1.0"
+  },
+  "devDependencies": {
+    "@qarta/config": "*",
+    "@types/react": "^18.3.0",
+    "react": "^18.3.0",
+    "tailwindcss": "^3.4.0",
+    "typescript": "^5.7.0"
+  },
+  "peerDependencies": {
+    "react": "^18.3.0"
+  }
+}

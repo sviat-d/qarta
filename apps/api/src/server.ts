@@ -1,0 +1,53 @@
+import Fastify from "fastify";
+import cors from "@fastify/cors";
+import helmet from "@fastify/helmet";
+import rateLimit from "@fastify/rate-limit";
+import { config } from "./config.js";
+import { healthRoutes } from "./routes/health.js";
+import { paymentRoutes } from "./routes/payments.js";
+import { webhookRoutes } from "./routes/webhooks.js";
+
+async function buildServer() {
+  const app = Fastify({
+    logger: {
+      level: config.LOG_LEVEL,
+      transport:
+        config.NODE_ENV === "development"
+          ? { target: "pino-pretty", options: { colorize: true } }
+          : undefined,
+    },
+  });
+
+  // Plugins
+  await app.register(cors, {
+    origin: config.NODE_ENV === "production" ? "https://qarta.eu" : true,
+  });
+
+  await app.register(helmet);
+
+  await app.register(rateLimit, {
+    max: 100,
+    timeWindow: "1 minute",
+  });
+
+  // Routes
+  await app.register(healthRoutes, { prefix: "/" });
+  await app.register(paymentRoutes, { prefix: "/v1/payments" });
+  await app.register(webhookRoutes, { prefix: "/v1/webhooks" });
+
+  return app;
+}
+
+async function start() {
+  const app = await buildServer();
+
+  try {
+    await app.listen({ port: config.PORT, host: config.HOST });
+    app.log.info(`Qarta API running on ${config.HOST}:${config.PORT}`);
+  } catch (err) {
+    app.log.error(err);
+    process.exit(1);
+  }
+}
+
+start();
