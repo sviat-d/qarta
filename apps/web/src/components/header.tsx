@@ -2,32 +2,35 @@ import Link from "next/link";
 
 export function Header() {
   return (
-    <header className="sticky top-0 z-50 border-b border-gray-100 bg-white/80 backdrop-blur-md">
+    <header className="fixed top-0 z-50 w-full border-b border-white/10 bg-slate-950/80 backdrop-blur-xl">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
-        <Link href="/" className="text-xl font-bold tracking-tight">
-          Qarta
+        <Link href="/" className="flex items-center gap-2">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-600 text-sm font-bold text-white">
+            Q
+          </div>
+          <span className="text-lg font-bold text-white">Qarta</span>
         </Link>
 
-        <nav className="hidden items-center gap-8 text-sm text-gray-600 md:flex">
-          <a href="#problems" className="transition-colors hover:text-gray-900">
-            Problems
+        <nav className="hidden items-center gap-8 text-sm text-slate-400 md:flex">
+          <a href="#problems" className="transition-colors hover:text-white">
+            Why Qarta
           </a>
-          <a href="#solution" className="transition-colors hover:text-gray-900">
-            Solution
+          <a href="#solution" className="transition-colors hover:text-white">
+            Features
           </a>
-          <a
-            href="#how-it-works"
-            className="transition-colors hover:text-gray-900"
-          >
+          <a href="#how-it-works" className="transition-colors hover:text-white">
             How It Works
+          </a>
+          <a href="#faq" className="transition-colors hover:text-white">
+            FAQ
           </a>
         </nav>
 
         <a
           href="#waitlist"
-          className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-700"
+          className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white transition-all hover:bg-brand-500 hover:shadow-lg hover:shadow-brand-600/25"
         >
-          Join Waitlist
+          Get Early Access
         </a>
       </div>
     </header>
