@@ -24,7 +24,11 @@ async function buildServer() {
 
   // Plugins
   await app.register(cors, {
-    origin: config.NODE_ENV === "production" ? "https://qarta.eu" : true,
+    origin:
+      config.NODE_ENV === "production"
+        ? [config.DASHBOARD_URL, "https://qarta.eu"]
+        : true,
+    credentials: true,
   });
 
   await app.register(helmet);
