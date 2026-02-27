@@ -1,0 +1,5 @@
+[build]
+command = "npm install && npx turbo build --filter=@qarta/api"
+
+[deploy]
+startCommand = "node apps/api/dist/server.js"
