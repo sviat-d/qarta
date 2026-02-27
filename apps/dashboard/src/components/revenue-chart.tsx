@@ -1,10 +1,31 @@
 "use client";
 
-import { mockChartData } from "@/lib/mock-data";
+import { fetchTimeseries } from "@/lib/api";
+import { useApi } from "@/lib/use-api";
+import type { OutcomesTimeSeries } from "@qarta/shared";
 
 export function AlertChart() {
-  const maxAlerts = Math.max(...mockChartData.map((d) => d.alerts));
+  const { data, isLoading } = useApi(() => fetchTimeseries(30), []);
+
+  const chartData: OutcomesTimeSeries[] = data?.data ?? [];
+  const maxAlerts = Math.max(...chartData.map((d) => d.alerts), 1);
   const chartHeight = 200;
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center rounded-xl border border-gray-200 bg-white p-6" style={{ height: chartHeight + 80 }}>
+        <div className="h-6 w-6 animate-spin rounded-full border-2 border-brand-600 border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (chartData.length === 0) {
+    return (
+      <div className="flex items-center justify-center rounded-xl border border-gray-200 bg-white p-6" style={{ height: chartHeight + 80 }}>
+        <p className="text-sm text-gray-400">No alert data yet</p>
+      </div>
+    );
+  }
 
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-6">
@@ -30,7 +51,7 @@ export function AlertChart() {
         className="flex items-end gap-[3px]"
         style={{ height: chartHeight }}
       >
-        {mockChartData.map((day) => {
+        {chartData.map((day) => {
           const totalHeight =
             maxAlerts > 0 ? (day.alerts / maxAlerts) * chartHeight : 0;
           const resolvedHeight =
@@ -45,7 +66,6 @@ export function AlertChart() {
               className="group relative flex-1"
               style={{ height: chartHeight }}
             >
-              {/* Escalated (top portion) */}
               <div
                 className="absolute bottom-0 w-full rounded-t"
                 style={{ height: `${totalHeight}px` }}
@@ -85,11 +105,11 @@ export function AlertChart() {
 
       {/* X-axis labels */}
       <div className="mt-2 flex justify-between text-[10px] text-gray-400">
-        <span>{mockChartData[0]?.date}</span>
+        <span>{chartData[0]?.date}</span>
         <span>
-          {mockChartData[Math.floor(mockChartData.length / 2)]?.date}
+          {chartData[Math.floor(chartData.length / 2)]?.date}
         </span>
-        <span>{mockChartData[mockChartData.length - 1]?.date}</span>
+        <span>{chartData[chartData.length - 1]?.date}</span>
       </div>
     </div>
   );
