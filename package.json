@@ -16,7 +16,8 @@
     "dev:dashboard": "turbo dev --filter=@qarta/dashboard",
     "db:generate": "turbo db:generate --filter=@qarta/api",
     "db:migrate": "turbo db:migrate --filter=@qarta/api",
-    "db:studio": "turbo db:studio --filter=@qarta/api"
+    "db:studio": "turbo db:studio --filter=@qarta/api",
+    "db:seed": "turbo db:seed --filter=@qarta/api"
   },
   "devDependencies": {
     "turbo": "^2.4.0",

@@ -154,6 +154,14 @@ export async function deletePolicy(id: string): Promise<ApiResponse<{ id: string
   return apiFetch(`/v1/policies/${id}`, { method: "DELETE" });
 }
 
+// ─── Auth ───
+
+export async function fetchMe(): Promise<
+  ApiResponse<{ id: string; name: string; email: string; stripeAccountId: string | null }>
+> {
+  return apiFetch("/v1/auth/me");
+}
+
 // ─── Outcomes ───
 
 export async function fetchOutcomes(): Promise<ApiResponse<OutcomesMetrics>> {
