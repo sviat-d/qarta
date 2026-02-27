@@ -1,6 +1,20 @@
 import type { FastifyRequest, FastifyReply } from "fastify";
 import { createHash } from "node:crypto";
+import { eq } from "drizzle-orm";
 import { config } from "../config.js";
+import { db, schema } from "../db/index.js";
+
+// Augment FastifyRequest with merchant context
+declare module "fastify" {
+  interface FastifyRequest {
+    merchant?: {
+      id: string;
+      name: string;
+      email: string;
+      stripeAccountId: string | null;
+    };
+  }
+}
 
 /**
  * API key authentication middleware.
@@ -23,12 +37,28 @@ export async function authenticateApiKey(
   }
 
   const apiKey = authHeader.slice(7);
-  const _keyHash = hashApiKey(apiKey);
+  const keyHash = hashApiKey(apiKey);
 
-  // TODO: Look up merchant by key hash in database
-  // const merchant = await db.query.merchants.findFirst({ where: eq(schema.merchants.apiKeyHash, keyHash) });
-  // if (!merchant) return reply.status(401).send(...)
-  // request.merchant = merchant;
+  const merchant = await db.query.merchants.findFirst({
+    where: eq(schema.merchants.apiKeyHash, keyHash),
+  });
+
+  if (!merchant) {
+    return reply.status(401).send({
+      success: false,
+      error: {
+        code: "UNAUTHORIZED",
+        message: "Invalid API key",
+      },
+    });
+  }
+
+  request.merchant = {
+    id: merchant.id,
+    name: merchant.name,
+    email: merchant.email,
+    stripeAccountId: merchant.stripeAccountId,
+  };
 }
 
 export function hashApiKey(apiKey: string): string {

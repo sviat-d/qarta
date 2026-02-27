@@ -10,23 +10,27 @@ export function createStripeClient(secretKey: string): Stripe {
 
 /**
  * Verify a Stripe webhook signature.
+ * Returns the verified event or throws on invalid signature.
  */
 export function verifyWebhookSignature(
   payload: string | Buffer,
   signature: string,
   webhookSecret: string,
+  secretKey: string,
 ): Stripe.Event {
-  const stripe = new Stripe(webhookSecret);
+  const stripe = createStripeClient(secretKey);
   return stripe.webhooks.constructEvent(payload, signature, webhookSecret);
 }
 
 /**
  * Look up a charge to get amount, currency, and customer details.
  * Needed when processing EFW alerts (which only contain charge ID).
+ * Pass stripeAccount for Stripe Connect (Standard accounts).
  */
 export async function getCharge(
   secretKey: string,
   chargeId: string,
+  stripeAccount?: string,
 ): Promise<{
   amount: number;
   currency: string;
@@ -37,9 +41,11 @@ export async function getCharge(
   cardBrand?: string;
 }> {
   const stripe = createStripeClient(secretKey);
-  const charge = await stripe.charges.retrieve(chargeId, {
-    expand: ["customer"],
-  });
+  const charge = await stripe.charges.retrieve(
+    chargeId,
+    { expand: ["customer"] },
+    stripeAccount ? { stripeAccount } : undefined,
+  );
 
   const card = charge.payment_method_details?.card;
   const customer = charge.customer as Stripe.Customer | null;

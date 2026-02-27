@@ -1,6 +1,10 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
-import type { ApiResponse, Policy, PaginatedResponse } from "@qarta/shared";
+import { eq, and } from "drizzle-orm";
+import { nanoid } from "nanoid";
+import type { ApiResponse, Policy, PaginatedResponse, PolicyCondition } from "@qarta/shared";
+import { authenticateApiKey } from "../middleware/auth.js";
+import { db, schema } from "../db/index.js";
 
 const conditionSchema = z.object({
   field: z.enum([
@@ -11,7 +15,7 @@ const conditionSchema = z.object({
     "is_actionable",
   ]),
   operator: z.enum(["lt", "lte", "gt", "gte", "eq", "in"]),
-  value: z.union([z.string(), z.number(), z.array(z.string())]),
+  value: z.union([z.string(), z.number(), z.boolean(), z.array(z.string())]),
 });
 
 const createPolicySchema = z.object({
@@ -33,24 +37,30 @@ const createPolicySchema = z.object({
  * Policy routes — create, list, and manage auto-refund policies.
  */
 export async function policyRoutes(app: FastifyInstance) {
+  // All policy routes require authentication
+  app.addHook("preHandler", authenticateApiKey);
+
   // List policies for a merchant
-  app.get("/", async (_request, reply) => {
-    // TODO: Authenticate merchant via API key
-    // TODO: Fetch policies from database
+  app.get("/", async (request, reply) => {
+    const merchant = request.merchant!;
+
+    const dbPolicies = await db.query.policies.findMany({
+      where: eq(schema.policies.merchantId, merchant.id),
+      orderBy: (policies, { asc }) => [asc(policies.priority)],
+    });
 
     const response: PaginatedResponse<Policy> = {
       success: true,
-      data: [],
-      meta: { total: 0, page: 1, perPage: 50 },
+      data: dbPolicies.map(dbPolicyToPolicy),
+      meta: { total: dbPolicies.length, page: 1, perPage: 50 },
     };
 
     return reply.send(response);
   });
 
   // Create a new policy
-  app.post<{
-    Body: z.infer<typeof createPolicySchema>;
-  }>("/", async (request, reply) => {
+  app.post("/", async (request, reply) => {
+    const merchant = request.merchant!;
     const parsed = createPolicySchema.safeParse(request.body);
 
     if (!parsed.success) {
@@ -64,13 +74,38 @@ export async function policyRoutes(app: FastifyInstance) {
       });
     }
 
-    // TODO: Authenticate merchant
-    // TODO: Create policy in database
-    // TODO: Write audit log
+    const { name, priority, conditions, action, safetyRails } = parsed.data;
+    const policyId = nanoid();
+
+    await db.insert(schema.policies).values({
+      id: policyId,
+      merchantId: merchant.id,
+      name,
+      priority,
+      conditions: conditions as PolicyCondition[],
+      actionType: action.type,
+      cancelSubscription: action.cancelSubscription ?? false,
+      maxRefundsPerDay: safetyRails.maxRefundsPerDay,
+      maxRefundsPerCustomer: safetyRails.maxRefundsPerCustomer,
+      maxRefundAmount: safetyRails.maxRefundAmount,
+    });
+
+    await db.insert(schema.auditLog).values({
+      id: nanoid(),
+      merchantId: merchant.id,
+      actor: "user",
+      event: "policy_created",
+      details: { policyId, name, priority, actionType: action.type },
+    });
+
+    app.log.info(
+      { merchantId: merchant.id, policyId, name },
+      "Policy created",
+    );
 
     const response: ApiResponse<{ id: string }> = {
       success: true,
-      data: { id: `pol_${Date.now()}` },
+      data: { id: policyId },
     };
 
     return reply.status(201).send(response);
@@ -80,16 +115,68 @@ export async function policyRoutes(app: FastifyInstance) {
   app.delete<{
     Params: { id: string };
   }>("/:id", async (request, reply) => {
+    const merchant = request.merchant!;
     const { id } = request.params;
 
-    // TODO: Authenticate merchant
-    // TODO: Verify policy belongs to merchant
-    // TODO: Soft-delete or hard-delete policy
-    // TODO: Write audit log
+    // Verify policy belongs to merchant
+    const policy = await db.query.policies.findFirst({
+      where: and(
+        eq(schema.policies.id, id),
+        eq(schema.policies.merchantId, merchant.id),
+      ),
+    });
+
+    if (!policy) {
+      return reply.status(404).send({
+        success: false,
+        error: { code: "NOT_FOUND", message: "Policy not found" },
+      });
+    }
+
+    await db
+      .delete(schema.policies)
+      .where(eq(schema.policies.id, id));
+
+    await db.insert(schema.auditLog).values({
+      id: nanoid(),
+      merchantId: merchant.id,
+      actor: "user",
+      event: "policy_deleted",
+      details: { policyId: id, name: policy.name },
+    });
+
+    app.log.info(
+      { merchantId: merchant.id, policyId: id },
+      "Policy deleted",
+    );
 
     return reply.send({
       success: true,
       data: { id, deleted: true },
     });
   });
+}
+
+function dbPolicyToPolicy(
+  row: typeof schema.policies.$inferSelect,
+): Policy {
+  return {
+    id: row.id,
+    merchantId: row.merchantId,
+    name: row.name,
+    enabled: row.enabled,
+    priority: row.priority,
+    conditions: row.conditions as PolicyCondition[],
+    action: {
+      type: row.actionType,
+      cancelSubscription: row.cancelSubscription,
+    },
+    safetyRails: {
+      maxRefundsPerDay: row.maxRefundsPerDay,
+      maxRefundsPerCustomer: row.maxRefundsPerCustomer,
+      maxRefundAmount: row.maxRefundAmount,
+    },
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
 }
