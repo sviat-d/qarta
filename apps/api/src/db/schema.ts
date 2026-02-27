@@ -75,9 +75,9 @@ export const stripeConnections = pgTable(
       .references(() => merchants.id)
       .notNull(),
     stripeAccountId: text("stripe_account_id").notNull(),
-    accessToken: text("access_token").notNull(),
+    accessToken: text("access_token"), // only for OAuth flow (deprecated)
     refreshToken: text("refresh_token"),
-    scope: text("scope").notNull(),
+    scope: text("scope").default("read_write").notNull(),
     livemode: boolean("livemode").default(false).notNull(),
     connectedAt: timestamp("connected_at").defaultNow().notNull(),
   },

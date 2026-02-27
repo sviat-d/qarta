@@ -17,7 +17,6 @@ const envSchema = z.object({
   // Stripe — the only PSP
   STRIPE_SECRET_KEY: z.string().optional(),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
-  STRIPE_CLIENT_ID: z.string().optional(), // for OAuth Connect
 
   // URLs
   API_BASE_URL: z.string().default("http://localhost:4000"),
