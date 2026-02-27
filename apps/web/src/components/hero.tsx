@@ -1,4 +1,4 @@
-import { WaitlistForm } from "./waitlist-form";
+const DASHBOARD_URL = process.env.NEXT_PUBLIC_DASHBOARD_URL ?? "http://localhost:3001";
 
 const metrics = [
   { value: "-70%", label: "Dispute Rate" },
@@ -37,8 +37,16 @@ export function Hero() {
           up to a frozen Stripe account.
         </p>
 
-        <div className="animate-fade-in-up-delay-3 mt-10" id="waitlist">
-          <WaitlistForm variant="dark" />
+        <div className="animate-fade-in-up-delay-3 mt-10 flex flex-col items-center gap-4">
+          <a
+            href={`${DASHBOARD_URL}/login`}
+            className="inline-flex rounded-lg bg-brand-600 px-8 py-3.5 text-sm font-medium text-white transition-all hover:bg-brand-500 hover:shadow-lg hover:shadow-brand-600/25"
+          >
+            Start Free — No Credit Card
+          </a>
+          <p className="text-sm text-slate-500">
+            10 min setup. First 10 alerts/month free.
+          </p>
         </div>
 
         <div className="animate-fade-in-up-delay-3 mt-12 flex flex-wrap items-center justify-center gap-8 border-t border-white/10 pt-8 sm:gap-12">

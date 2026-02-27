@@ -36,6 +36,7 @@ async function buildServer() {
   await app.register(rateLimit, {
     max: 100,
     timeWindow: "1 minute",
+    allowList: (req) => req.url?.startsWith("/v1/webhooks") ?? false,
   });
 
   // Routes
@@ -43,7 +44,14 @@ async function buildServer() {
   await app.register(alertRoutes, { prefix: "/v1/alerts" });
   await app.register(policyRoutes, { prefix: "/v1/policies" });
   await app.register(outcomesRoutes, { prefix: "/v1/outcomes" });
-  await app.register(webhookRoutes, { prefix: "/v1/webhooks" });
+  await app.register(async function webhookScope(scope) {
+    // Separate rate limit for webhooks — Stripe sends bursts
+    await scope.register(rateLimit, {
+      max: 500,
+      timeWindow: "1 minute",
+    });
+    await scope.register(webhookRoutes);
+  }, { prefix: "/v1/webhooks" });
   await app.register(connectRoutes, { prefix: "/v1/connect" });
   await app.register(authRoutes, { prefix: "/v1/auth" });
 

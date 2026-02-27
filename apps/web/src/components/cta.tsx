@@ -1,4 +1,4 @@
-import { WaitlistForm } from "./waitlist-form";
+const DASHBOARD_URL = process.env.NEXT_PUBLIC_DASHBOARD_URL ?? "http://localhost:3001";
 
 export function CTA() {
   return (
@@ -14,15 +14,20 @@ export function CTA() {
             Stop losing revenue to chargebacks
           </h2>
           <p className="mx-auto mt-4 max-w-xl text-lg text-slate-400">
-            Join the early access list. Protect your Stripe dispute ratio
-            and save money on every prevented chargeback.
+            Connect your Stripe account in 10 minutes. Start deflecting
+            chargebacks automatically.
           </p>
-          <div className="mt-8">
-            <WaitlistForm variant="dark" />
+          <div className="mt-8 flex flex-col items-center gap-4">
+            <a
+              href={`${DASHBOARD_URL}/login`}
+              className="inline-flex rounded-lg bg-brand-600 px-8 py-3.5 text-sm font-medium text-white transition-all hover:bg-brand-500 hover:shadow-lg hover:shadow-brand-600/25"
+            >
+              Start Free — No Credit Card
+            </a>
+            <p className="text-sm text-slate-600">
+              First 10 alerts/month free. No code changes needed.
+            </p>
           </div>
-          <p className="mt-4 text-sm text-slate-600">
-            Free during early access. 10 min setup. No code changes.
-          </p>
         </div>
       </div>
     </section>
