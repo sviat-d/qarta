@@ -14,11 +14,10 @@ const envSchema = z.object({
   DATABASE_URL: z.string().url(),
   REDIS_URL: z.string().default("redis://localhost:6379"),
 
+  // Stripe — the only PSP
   STRIPE_SECRET_KEY: z.string().optional(),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
-
-  COINBASE_COMMERCE_API_KEY: z.string().optional(),
-  COINBASE_COMMERCE_WEBHOOK_SECRET: z.string().optional(),
+  STRIPE_CLIENT_ID: z.string().optional(), // for OAuth Connect
 
   API_KEY_SALT: z.string().default("dev-salt-change-in-production"),
 });

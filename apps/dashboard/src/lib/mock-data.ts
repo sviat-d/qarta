@@ -1,31 +1,65 @@
-import type { PaymentStatus, PspProvider, PaymentMethod } from "@qarta/shared";
+import type {
+  AlertSource,
+  AlertStatus,
+  DisputeReasonCategory,
+} from "@qarta/shared";
 
-// --- Mock payments ---
+// --- Mock alerts ---
 
-export interface MockPayment {
+export interface MockAlert {
   id: string;
+  source: AlertSource;
+  status: AlertStatus;
   amount: number;
   currency: string;
-  status: PaymentStatus;
-  method: PaymentMethod;
-  provider: PspProvider;
-  customerId: string;
+  reasonCategory: DisputeReasonCategory;
   customerEmail: string;
+  customerId: string;
+  cardLast4: string;
+  cardBrand: string;
+  isActionable: boolean;
+  stripeChargeId: string;
   createdAt: string;
-  declineCode?: string;
+  resolvedAt?: string;
 }
 
-const statuses: PaymentStatus[] = [
-  "succeeded",
-  "succeeded",
-  "succeeded",
-  "succeeded",
-  "succeeded",
-  "failed",
-  "pending",
-  "processing",
-  "refunded",
-  "disputed",
+const sources: AlertSource[] = [
+  "stripe_efw",
+  "stripe_efw",
+  "stripe_dispute",
+  "stripe_efw",
+  "stripe_dispute",
+  "stripe_inquiry",
+  "stripe_efw",
+  "stripe_dispute",
+  "stripe_efw",
+  "stripe_efw",
+];
+
+const statuses: AlertStatus[] = [
+  "auto_refunded",
+  "auto_refunded",
+  "auto_refunded",
+  "escalated",
+  "manually_resolved",
+  "auto_refunded",
+  "new",
+  "dismissed",
+  "auto_refunded",
+  "auto_refunded",
+];
+
+const reasons: DisputeReasonCategory[] = [
+  "fraudulent",
+  "unrecognized",
+  "fraudulent",
+  "subscription_canceled",
+  "product_not_received",
+  "fraudulent",
+  "unrecognized",
+  "duplicate",
+  "fraudulent",
+  "general",
 ];
 
 const emails = [
@@ -41,54 +75,73 @@ const emails = [
   "jake@tech.io",
 ];
 
-function generatePayments(count: number): MockPayment[] {
-  const payments: MockPayment[] = [];
+const brands = ["visa", "mastercard", "amex", "visa", "mastercard"];
+
+function generateAlerts(count: number): MockAlert[] {
+  const alerts: MockAlert[] = [];
   const now = Date.now();
 
   for (let i = 0; i < count; i++) {
+    const source = sources[i % sources.length]!;
     const status = statuses[i % statuses.length]!;
-    const isCrypto = i % 7 === 0;
     const email = emails[i % emails.length]!;
+    const createdAt = new Date(
+      now - i * 7200000 - Math.random() * 3600000,
+    ).toISOString();
 
-    payments.push({
-      id: `pay_${(1000 + i).toString(36)}${i.toString().padStart(4, "0")}`,
-      amount: Math.floor(Math.random() * 50000 + 500),
-      currency: "USD",
+    const isResolved = [
+      "auto_refunded",
+      "manually_resolved",
+      "dismissed",
+    ].includes(status);
+
+    alerts.push({
+      id: `alt_${(1000 + i).toString(36)}${i.toString().padStart(4, "0")}`,
+      source,
       status,
-      method: isCrypto ? "crypto" : "card",
-      provider: isCrypto ? "coinbase_commerce" : "stripe",
-      customerId: `cus_${i.toString().padStart(6, "0")}`,
+      amount: Math.floor(Math.random() * 25000 + 500),
+      currency: "USD",
+      reasonCategory: reasons[i % reasons.length]!,
       customerEmail: email,
-      createdAt: new Date(now - i * 3600000 - Math.random() * 3600000).toISOString(),
-      declineCode: status === "failed" ? "insufficient_funds" : undefined,
+      customerId: `cus_${i.toString().padStart(6, "0")}`,
+      cardLast4: `${(4000 + i * 137) % 10000}`.padStart(4, "0"),
+      cardBrand: brands[i % brands.length]!,
+      isActionable: source === "stripe_efw",
+      stripeChargeId: `ch_${Date.now().toString(36)}${i}`,
+      createdAt,
+      resolvedAt: isResolved
+        ? new Date(
+            new Date(createdAt).getTime() + Math.random() * 60000 + 5000,
+          ).toISOString()
+        : undefined,
     });
   }
 
-  return payments;
+  return alerts;
 }
 
-export const mockPayments = generatePayments(50);
+export const mockAlerts = generateAlerts(50);
 
-// --- Mock metrics ---
+// --- Mock outcomes metrics ---
 
-export const mockMetrics = {
-  totalRevenue: 284_750_00, // cents
-  approvalRate: 94.2,
-  chargebackRate: 0.3,
-  totalPayments: 3847,
-  successfulPayments: 3624,
-  failedPayments: 158,
-  pendingPayments: 65,
-  disputedPayments: 12,
-  revenueChange: 12.5,
-  approvalRateChange: 1.8,
-  chargebackRateChange: -0.2,
-  paymentsChange: 8.3,
+export const mockOutcomes = {
+  alertsTotal: 127,
+  alertsAutoResolved: 89,
+  alertsEscalated: 23,
+  alertsDismissed: 12,
+  alertsNew: 3,
+  disputesAvoided: 89,
+  disputeRateCurrent: 0.32,
+  disputeRatePrevious: 0.71,
+  totalRefunded: 156_400, // cents = $1,564
+  feesAvoided: 133_500, // cents = $1,335 (89 * $15)
+  automationRate: 70.1,
+  avgResponseTime: 42000, // 42 seconds
 };
 
 // --- Mock chart data (last 30 days) ---
 
-export function generateChartData() {
+export function generateAlertChartData() {
   const data = [];
   const now = new Date();
 
@@ -96,39 +149,58 @@ export function generateChartData() {
     const date = new Date(now);
     date.setDate(date.getDate() - i);
 
-    const base = 8000 + Math.random() * 4000;
-    const succeeded = Math.floor(base * (0.9 + Math.random() * 0.08));
-    const failed = Math.floor(base * (0.02 + Math.random() * 0.04));
+    const alerts = Math.floor(2 + Math.random() * 6);
+    const autoResolved = Math.floor(alerts * (0.6 + Math.random() * 0.3));
+    const escalated = Math.floor(
+      (alerts - autoResolved) * (0.3 + Math.random() * 0.4),
+    );
+    const disputeRate = 0.2 + Math.random() * 0.3;
 
     data.push({
       date: date.toISOString().split("T")[0]!,
-      revenue: Math.floor(base * 100),
-      succeeded,
-      failed,
-      total: succeeded + failed,
+      alerts,
+      autoResolved,
+      escalated,
+      disputeRate: Math.round(disputeRate * 100) / 100,
     });
   }
 
   return data;
 }
 
-export const mockChartData = generateChartData();
+export const mockChartData = generateAlertChartData();
 
-// --- Mock PSP configs ---
+// --- Mock policies ---
 
-export const mockPspConfigs = [
+export const mockPolicies = [
   {
-    provider: "stripe" as PspProvider,
+    id: "pol_001",
+    name: "Auto-refund small fraud alerts",
     enabled: true,
     priority: 1,
-    connected: true,
-    lastPayment: "2 min ago",
+    conditions: "amount < $100 AND reason = fraudulent AND source = EFW",
+    action: "Auto-refund",
+    refundsToday: 3,
+    maxPerDay: 25,
   },
   {
-    provider: "coinbase_commerce" as PspProvider,
+    id: "pol_002",
+    name: "Escalate high-value alerts",
     enabled: true,
     priority: 2,
-    connected: true,
-    lastPayment: "1 hour ago",
+    conditions: "amount >= $100",
+    action: "Escalate to manual review",
+    refundsToday: 0,
+    maxPerDay: 50,
+  },
+  {
+    id: "pol_003",
+    name: "Dismiss duplicate alerts",
+    enabled: true,
+    priority: 3,
+    conditions: "reason = duplicate",
+    action: "Dismiss",
+    refundsToday: 1,
+    maxPerDay: 100,
   },
 ];

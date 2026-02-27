@@ -1,59 +1,100 @@
 // ============================================================
-// Qarta Payment Engine — Constants
+// Qarta Chargeback Deflection — Constants
 // ============================================================
 
-export const PSP_PROVIDERS = ["stripe", "coinbase_commerce"] as const;
+// --- Alert Sources ---
 
-export const PAYMENT_METHODS = ["card", "crypto"] as const;
-
-export const SUPPORTED_FIAT_CURRENCIES = [
-  "USD",
-  "EUR",
-  "GBP",
-  "CAD",
-  "AUD",
+export const ALERT_SOURCES = [
+  "stripe_efw",
+  "stripe_dispute",
+  "stripe_inquiry",
+  "manual",
 ] as const;
 
-export const SUPPORTED_CRYPTO_CURRENCIES = [
-  "USDT",
-  "USDC",
-  "BTC",
-  "ETH",
+// --- Alert Statuses ---
+
+export const ALERT_STATUSES = [
+  "new",
+  "evaluating",
+  "auto_refunded",
+  "escalated",
+  "manually_resolved",
+  "dismissed",
+  "expired",
 ] as const;
 
-export const MAX_RETRY_ATTEMPTS = 3;
+// --- Dispute Reason Categories ---
 
-export const RETRY_DELAY_MS = [2000, 5000, 15000] as const;
-
-export const SOFT_DECLINE_CODES = [
-  "insufficient_funds",
-  "processing_error",
-  "try_again_later",
-  "card_velocity_exceeded",
-  "do_not_honor",
-] as const;
-
-export const HARD_DECLINE_CODES = [
-  "stolen_card",
-  "lost_card",
-  "expired_card",
-  "invalid_account",
-  "card_declined",
+export const DISPUTE_REASON_CATEGORIES = [
   "fraudulent",
+  "unrecognized",
+  "duplicate",
+  "product_not_received",
+  "product_unacceptable",
+  "subscription_canceled",
+  "general",
 ] as const;
 
-export const CHARGEBACK_REASON_CODES = {
-  fraudulent: "10.4",
-  duplicate: "11.1",
-  product_not_received: "13.1",
-  product_unacceptable: "13.3",
-  subscription_canceled: "13.7",
-} as const;
+// --- Stripe Reason → Category Mapping ---
+
+export const STRIPE_REASON_TO_CATEGORY: Record<string, string> = {
+  fraudulent: "fraudulent",
+  unrecognized: "unrecognized",
+  duplicate: "duplicate",
+  product_not_received: "product_not_received",
+  product_unacceptable: "product_unacceptable",
+  subscription_canceled: "subscription_canceled",
+  general: "general",
+  credit_not_processed: "general",
+  incorrect_account_details: "general",
+  insufficient_funds: "general",
+  bank_cannot_process: "general",
+  debit_not_authorized: "general",
+  customer_initiated: "general",
+};
+
+// --- Stripe Monitoring Thresholds ---
 
 export const STRIPE_MONITORING_THRESHOLDS = {
+  /** Stripe flags accounts above 0.75% dispute rate */
   disputeRate: 0.0075,
+  /** Stripe VAMP programme escalation at 0.9% */
   fraudRate: 0.009,
+  /** Desired safe zone — well below monitoring */
+  safeDisputeRate: 0.005,
 } as const;
+
+// --- Default Safety Rails ---
+
+export const DEFAULT_SAFETY_RAILS = {
+  maxRefundsPerDay: 25,
+  maxRefundsPerCustomer: 3,
+  maxRefundAmount: 50000, // $500 in cents
+} as const;
+
+// --- Dispute Fee Estimates ---
+
+export const DISPUTE_FEE_CENTS = {
+  /** Stripe dispute fee */
+  stripe: 1500, // $15
+} as const;
+
+// --- Alert Expiry ---
+
+/** Hours before an unresolved alert expires */
+export const ALERT_EXPIRY_HOURS = 48;
+
+// --- Stripe Webhook Event Types We Care About ---
+
+export const STRIPE_EVENTS_OF_INTEREST = [
+  "radar.early_fraud_warning.created",
+  "charge.dispute.created",
+  "charge.dispute.updated",
+  "charge.dispute.closed",
+  "charge.refunded",
+] as const;
+
+// --- HTTP Status Codes ---
 
 export const HTTP_STATUS = {
   OK: 200,

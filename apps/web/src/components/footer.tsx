@@ -12,9 +12,9 @@ export function Footer() {
               <span className="font-bold text-gray-900">Qarta</span>
             </div>
             <p className="mt-3 text-sm text-gray-500">
-              Smarter payments for SaaS.
+              Chargeback deflection for Stripe SaaS.
               <br />
-              One API. More revenue. Less risk.
+              Protect your dispute ratio. Save revenue.
             </p>
           </div>
 

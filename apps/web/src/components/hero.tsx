@@ -1,9 +1,9 @@
 import { WaitlistForm } from "./waitlist-form";
 
 const metrics = [
-  { value: "+15%", label: "Approval Rate" },
-  { value: "-70%", label: "Chargebacks" },
-  { value: "<1 day", label: "Integration" },
+  { value: "-70%", label: "Dispute Rate" },
+  { value: "$15+", label: "Saved Per Alert" },
+  { value: "10 min", label: "Setup Time" },
 ];
 
 export function Hero() {
@@ -22,19 +22,19 @@ export function Hero() {
       <div className="relative mx-auto max-w-4xl text-center">
         <div className="animate-fade-in-up mb-6 inline-flex items-center gap-2 rounded-full border border-brand-500/20 bg-brand-500/10 px-4 py-1.5 text-sm text-brand-300">
           <span className="h-1.5 w-1.5 rounded-full bg-brand-400" />
-          Payment optimization layer for SaaS
+          Chargeback deflection for Stripe SaaS
         </div>
 
         <h1 className="animate-fade-in-up-delay-1 text-4xl font-bold tracking-tight text-white sm:text-6xl lg:text-7xl">
-          Your payments work.
+          Stop chargebacks
           <br />
-          <span className="text-gradient">Make them work better.</span>
+          <span className="text-gradient">before they happen.</span>
         </h1>
 
         <p className="animate-fade-in-up-delay-2 mx-auto mt-6 max-w-2xl text-lg leading-8 text-slate-400">
-          Stripe handles 80% of your payments perfectly. Qarta optimizes the other
-          20% — failed charges, chargebacks, and single-provider risk that quietly
-          cost you thousands every month.
+          Qarta intercepts pre-dispute signals from Stripe, auto-refunds based
+          on your rules, and keeps your dispute ratio safe — so you never wake
+          up to a frozen Stripe account.
         </p>
 
         <div className="animate-fade-in-up-delay-3 mt-10" id="waitlist">

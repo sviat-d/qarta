@@ -12,143 +12,215 @@ import {
 
 // --- Enums ---
 
-export const paymentStatusEnum = pgEnum("payment_status", [
+export const alertSourceEnum = pgEnum("alert_source", [
+  "stripe_efw",
+  "stripe_dispute",
+  "stripe_inquiry",
+  "manual",
+]);
+
+export const alertStatusEnum = pgEnum("alert_status", [
+  "new",
+  "evaluating",
+  "auto_refunded",
+  "escalated",
+  "manually_resolved",
+  "dismissed",
+  "expired",
+]);
+
+export const disputeReasonEnum = pgEnum("dispute_reason_category", [
+  "fraudulent",
+  "unrecognized",
+  "duplicate",
+  "product_not_received",
+  "product_unacceptable",
+  "subscription_canceled",
+  "general",
+]);
+
+export const refundActionStatusEnum = pgEnum("refund_action_status", [
   "pending",
-  "processing",
-  "succeeded",
+  "executed",
   "failed",
-  "refunded",
-  "partially_refunded",
-  "disputed",
+  "skipped",
 ]);
 
-export const paymentMethodEnum = pgEnum("payment_method", ["card", "crypto"]);
-
-export const pspProviderEnum = pgEnum("psp_provider", [
-  "stripe",
-  "coinbase_commerce",
+export const policyActionTypeEnum = pgEnum("policy_action_type", [
+  "auto_refund",
+  "escalate",
+  "dismiss",
 ]);
 
-export const declineTypeEnum = pgEnum("decline_type", ["hard", "soft"]);
-
-export const subscriptionStatusEnum = pgEnum("subscription_status", [
-  "active",
-  "past_due",
-  "canceled",
-  "paused",
-]);
-
-export const chargebackStatusEnum = pgEnum("chargeback_status", [
-  "open",
-  "under_review",
-  "won",
-  "lost",
-]);
+export const auditActorEnum = pgEnum("audit_actor", ["system", "user"]);
 
 // --- Tables ---
 
 export const merchants = pgTable("merchants", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
+  email: text("email").notNull(),
   apiKeyHash: text("api_key_hash").notNull(),
-  pspConfigs: jsonb("psp_configs").$type<
-    {
-      provider: string;
-      enabled: boolean;
-      priority: number;
-      credentials: Record<string, string>;
-    }[]
-  >(),
+  stripeAccountId: text("stripe_account_id"),
+  onboardedAt: timestamp("onboarded_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-export const payments = pgTable(
-  "payments",
+export const stripeConnections = pgTable(
+  "stripe_connections",
   {
     id: text("id").primaryKey(),
     merchantId: text("merchant_id")
       .references(() => merchants.id)
       .notNull(),
-    externalId: text("external_id"),
-    amount: integer("amount").notNull(), // stored in cents
+    stripeAccountId: text("stripe_account_id").notNull(),
+    accessToken: text("access_token").notNull(),
+    refreshToken: text("refresh_token"),
+    scope: text("scope").notNull(),
+    livemode: boolean("livemode").default(false).notNull(),
+    connectedAt: timestamp("connected_at").defaultNow().notNull(),
+  },
+  (table) => [index("stripe_conn_merchant_idx").on(table.merchantId)],
+);
+
+export const alerts = pgTable(
+  "alerts",
+  {
+    id: text("id").primaryKey(),
+    merchantId: text("merchant_id")
+      .references(() => merchants.id)
+      .notNull(),
+    source: alertSourceEnum("source").notNull(),
+    status: alertStatusEnum("status").default("new").notNull(),
+
+    // Stripe identifiers for matching
+    stripeChargeId: text("stripe_charge_id"),
+    stripePaymentIntentId: text("stripe_payment_intent_id"),
+    stripeDisputeId: text("stripe_dispute_id"),
+    stripeEfwId: text("stripe_efw_id"),
+
+    // Transaction details
+    amount: integer("amount").notNull(), // cents
     currency: varchar("currency", { length: 3 }).notNull(),
-    status: paymentStatusEnum("status").default("pending").notNull(),
-    method: paymentMethodEnum("method").default("card").notNull(),
-    provider: pspProviderEnum("provider"),
+    reasonCategory: disputeReasonEnum("reason_category")
+      .default("general")
+      .notNull(),
+    reasonRaw: text("reason_raw"),
+
+    // Customer info
+    customerEmail: text("customer_email"),
     customerId: text("customer_id"),
+    cardLast4: varchar("card_last4", { length: 4 }),
+    cardBrand: text("card_brand"),
+
+    // EFW specific
+    isActionable: boolean("is_actionable").default(false).notNull(),
+
     metadata: jsonb("metadata").$type<Record<string, unknown>>(),
+    resolvedAt: timestamp("resolved_at"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
   (table) => [
-    index("payments_merchant_idx").on(table.merchantId),
-    index("payments_status_idx").on(table.status),
-    index("payments_customer_idx").on(table.customerId),
+    index("alerts_merchant_idx").on(table.merchantId),
+    index("alerts_status_idx").on(table.status),
+    index("alerts_source_idx").on(table.source),
+    index("alerts_stripe_charge_idx").on(table.stripeChargeId),
+    index("alerts_customer_idx").on(table.customerId),
+    index("alerts_created_idx").on(table.createdAt),
   ],
 );
 
-export const paymentAttempts = pgTable(
-  "payment_attempts",
-  {
-    id: text("id").primaryKey(),
-    paymentId: text("payment_id")
-      .references(() => payments.id)
-      .notNull(),
-    provider: pspProviderEnum("provider").notNull(),
-    status: paymentStatusEnum("status").default("pending").notNull(),
-    declineCode: text("decline_code"),
-    declineType: declineTypeEnum("decline_type"),
-    providerTransactionId: text("provider_transaction_id"),
-    createdAt: timestamp("created_at").defaultNow().notNull(),
-  },
-  (table) => [index("attempts_payment_idx").on(table.paymentId)],
-);
-
-export const subscriptions = pgTable(
-  "subscriptions",
+export const policies = pgTable(
+  "policies",
   {
     id: text("id").primaryKey(),
     merchantId: text("merchant_id")
       .references(() => merchants.id)
       .notNull(),
-    customerId: text("customer_id").notNull(),
-    planId: text("plan_id").notNull(),
-    status: subscriptionStatusEnum("status").default("active").notNull(),
-    currentPeriodStart: timestamp("current_period_start").notNull(),
-    currentPeriodEnd: timestamp("current_period_end").notNull(),
+    name: text("name").notNull(),
+    enabled: boolean("enabled").default(true).notNull(),
+    priority: integer("priority").default(100).notNull(), // lower = first
+    conditions: jsonb("conditions")
+      .$type<
+        {
+          field: string;
+          operator: string;
+          value: string | number | string[];
+        }[]
+      >()
+      .notNull(),
+    actionType: policyActionTypeEnum("action_type").notNull(),
+    cancelSubscription: boolean("cancel_subscription")
+      .default(false)
+      .notNull(),
+
+    // Safety rails
+    maxRefundsPerDay: integer("max_refunds_per_day").default(25).notNull(),
+    maxRefundsPerCustomer: integer("max_refunds_per_customer")
+      .default(3)
+      .notNull(),
+    maxRefundAmount: integer("max_refund_amount").default(50000).notNull(), // cents
+
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
   (table) => [
-    index("subs_merchant_idx").on(table.merchantId),
-    index("subs_customer_idx").on(table.customerId),
+    index("policies_merchant_idx").on(table.merchantId),
+    index("policies_priority_idx").on(table.priority),
   ],
 );
 
-export const chargebacks = pgTable(
-  "chargebacks",
+export const refundActions = pgTable(
+  "refund_actions",
   {
     id: text("id").primaryKey(),
-    paymentId: text("payment_id")
-      .references(() => payments.id)
+    alertId: text("alert_id")
+      .references(() => alerts.id)
       .notNull(),
     merchantId: text("merchant_id")
       .references(() => merchants.id)
       .notNull(),
-    amount: integer("amount").notNull(),
+    policyId: text("policy_id").references(() => policies.id),
+    status: refundActionStatusEnum("status").default("pending").notNull(),
+    refundAmount: integer("refund_amount").notNull(), // cents
     currency: varchar("currency", { length: 3 }).notNull(),
-    reason: text("reason").notNull(),
-    status: chargebackStatusEnum("status").default("open").notNull(),
-    provider: pspProviderEnum("provider").notNull(),
-    providerDisputeId: text("provider_dispute_id"),
+    stripeRefundId: text("stripe_refund_id"),
+    stripeChargeId: text("stripe_charge_id").notNull(),
+    canceledSubscription: boolean("canceled_subscription")
+      .default(false)
+      .notNull(),
+    failureReason: text("failure_reason"),
+    executedAt: timestamp("executed_at"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
-    updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
   (table) => [
-    index("cb_payment_idx").on(table.paymentId),
-    index("cb_merchant_idx").on(table.merchantId),
-    index("cb_status_idx").on(table.status),
+    index("actions_alert_idx").on(table.alertId),
+    index("actions_merchant_idx").on(table.merchantId),
+    index("actions_status_idx").on(table.status),
+    index("actions_created_idx").on(table.createdAt),
+  ],
+);
+
+export const auditLog = pgTable(
+  "audit_log",
+  {
+    id: text("id").primaryKey(),
+    merchantId: text("merchant_id")
+      .references(() => merchants.id)
+      .notNull(),
+    alertId: text("alert_id").references(() => alerts.id),
+    actionId: text("action_id").references(() => refundActions.id),
+    actor: auditActorEnum("actor").notNull(),
+    event: text("event").notNull(),
+    details: jsonb("details").$type<Record<string, unknown>>(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("audit_merchant_idx").on(table.merchantId),
+    index("audit_alert_idx").on(table.alertId),
+    index("audit_created_idx").on(table.createdAt),
   ],
 );
 
@@ -156,14 +228,14 @@ export const webhookEvents = pgTable(
   "webhook_events",
   {
     id: text("id").primaryKey(),
+    stripeEventId: text("stripe_event_id").notNull().unique(),
     type: text("type").notNull(),
-    provider: pspProviderEnum("provider").notNull(),
     payload: jsonb("payload").$type<Record<string, unknown>>().notNull(),
     processedAt: timestamp("processed_at"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => [
+    index("wh_stripe_event_idx").on(table.stripeEventId),
     index("wh_type_idx").on(table.type),
-    index("wh_provider_idx").on(table.provider),
   ],
 );

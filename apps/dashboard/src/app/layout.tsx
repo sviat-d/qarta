@@ -3,7 +3,8 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Qarta Dashboard",
-  description: "Manage your payments, track revenue, and optimize approval rates.",
+  description:
+    "Manage your chargeback deflection policies, monitor alerts, and track dispute prevention outcomes.",
 };
 
 export default function RootLayout({
