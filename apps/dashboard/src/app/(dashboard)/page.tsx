@@ -1,10 +1,79 @@
+"use client";
+
+import { useState, useEffect } from "react";
 import { TopBar } from "@/components/top-bar";
 import { MetricCard } from "@/components/metric-card";
 import { AlertChart } from "@/components/revenue-chart";
 import { RecentAlerts } from "@/components/recent-payments";
-import { mockOutcomes } from "@/lib/mock-data";
+import { getOutcomes, getTimeseries } from "@/lib/api";
+import type { OutcomesMetrics, OutcomesTimeSeries } from "@qarta/shared";
 
 export default function OverviewPage() {
+  const [metrics, setMetrics] = useState<OutcomesMetrics | null>(null);
+  const [timeseries, setTimeseries] = useState<OutcomesTimeSeries[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([getOutcomes(), getTimeseries()])
+      .then(([outRes, tsRes]) => {
+        setMetrics(outRes.data ?? null);
+        setTimeseries(tsRes.data ?? []);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <>
+        <TopBar title="Overview" />
+        <div className="flex items-center justify-center p-16">
+          <svg
+            className="h-5 w-5 animate-spin text-brand-600"
+            viewBox="0 0 24 24"
+            fill="none"
+          >
+            <circle
+              className="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              strokeWidth="4"
+            />
+            <path
+              className="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+            />
+          </svg>
+        </div>
+      </>
+    );
+  }
+
+  if (!metrics) {
+    return (
+      <>
+        <TopBar title="Overview" />
+        <div className="p-8">
+          <div className="rounded-xl border border-gray-200 bg-white p-12 text-center">
+            <p className="text-gray-500">
+              No data yet. Connect your Stripe account to start receiving
+              alerts.
+            </p>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  const alertsNew =
+    metrics.alertsTotal -
+    metrics.alertsAutoResolved -
+    metrics.alertsEscalated -
+    metrics.alertsDismissed;
+
   return (
     <>
       <TopBar title="Overview" />
@@ -13,26 +82,22 @@ export default function OverviewPage() {
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
           <MetricCard
             title="Disputes Avoided"
-            value={mockOutcomes.disputesAvoided.toString()}
-            change={12}
+            value={metrics.disputesAvoided.toString()}
             subtitle="this month"
           />
           <MetricCard
             title="Dispute Rate"
-            value={`${mockOutcomes.disputeRateCurrent}%`}
-            change={-55}
-            subtitle={`was ${mockOutcomes.disputeRatePrevious}%`}
+            value={`${metrics.disputeRateCurrent}%`}
+            subtitle={`was ${metrics.disputeRatePrevious}%`}
           />
           <MetricCard
             title="Fees Saved"
-            value={`$${(mockOutcomes.feesAvoided / 100).toLocaleString()}`}
-            change={18}
+            value={`$${(metrics.feesAvoided / 100).toLocaleString()}`}
             subtitle="this month"
           />
           <MetricCard
             title="Automation Rate"
-            value={`${mockOutcomes.automationRate}%`}
-            change={5.2}
+            value={`${metrics.automationRate}%`}
             subtitle="auto-resolved"
           />
         </div>
@@ -40,7 +105,7 @@ export default function OverviewPage() {
         {/* Chart + breakdown row */}
         <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-3">
           <div className="lg:col-span-2">
-            <AlertChart />
+            <AlertChart data={timeseries} />
           </div>
           <div className="rounded-xl border border-gray-200 bg-white p-6">
             <h3 className="text-sm font-medium text-gray-900">
@@ -50,26 +115,26 @@ export default function OverviewPage() {
             <div className="mt-6 space-y-4">
               <BreakdownRow
                 label="Auto-Refunded"
-                count={mockOutcomes.alertsAutoResolved}
-                total={mockOutcomes.alertsTotal}
+                count={metrics.alertsAutoResolved}
+                total={metrics.alertsTotal}
                 color="bg-green-500"
               />
               <BreakdownRow
                 label="Escalated"
-                count={mockOutcomes.alertsEscalated}
-                total={mockOutcomes.alertsTotal}
+                count={metrics.alertsEscalated}
+                total={metrics.alertsTotal}
                 color="bg-orange-500"
               />
               <BreakdownRow
                 label="Dismissed"
-                count={mockOutcomes.alertsDismissed}
-                total={mockOutcomes.alertsTotal}
+                count={metrics.alertsDismissed}
+                total={metrics.alertsTotal}
                 color="bg-gray-400"
               />
               <BreakdownRow
                 label="Pending"
-                count={mockOutcomes.alertsNew}
-                total={mockOutcomes.alertsTotal}
+                count={Math.max(0, alertsNew)}
+                total={metrics.alertsTotal}
                 color="bg-blue-500"
               />
             </div>
@@ -84,13 +149,15 @@ export default function OverviewPage() {
                 <div
                   className="h-full rounded-full bg-green-500"
                   style={{
-                    width: `${(mockOutcomes.disputeRateCurrent / 0.75) * 100}%`,
+                    width: `${Math.min(100, (metrics.disputeRateCurrent / 0.75) * 100)}%`,
                   }}
                 />
               </div>
               <p className="mt-1 text-xs text-gray-400">
-                You&apos;re at {mockOutcomes.disputeRateCurrent}% — well below
-                monitoring
+                You&apos;re at {metrics.disputeRateCurrent}% —{" "}
+                {metrics.disputeRateCurrent < 0.75
+                  ? "well below monitoring"
+                  : "approaching monitoring threshold"}
               </p>
             </div>
           </div>

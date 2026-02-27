@@ -1,6 +1,10 @@
-import { mockAlerts } from "@/lib/mock-data";
+"use client";
+
+import { useState, useEffect } from "react";
+import { getAlerts } from "@/lib/api";
 import { StatusBadge } from "./status-badge";
 import Link from "next/link";
+import type { Alert } from "@qarta/shared";
 
 const sourceLabels: Record<string, { label: string; color: string }> = {
   stripe_efw: { label: "EFW", color: "bg-purple-500" },
@@ -10,7 +14,49 @@ const sourceLabels: Record<string, { label: string; color: string }> = {
 };
 
 export function RecentAlerts() {
-  const recent = mockAlerts.slice(0, 8);
+  const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    getAlerts({ perPage: 8 })
+      .then((res) => setAlerts(res.data))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center rounded-xl border border-gray-200 bg-white p-8">
+        <svg
+          className="h-5 w-5 animate-spin text-brand-600"
+          viewBox="0 0 24 24"
+          fill="none"
+        >
+          <circle
+            className="opacity-25"
+            cx="12"
+            cy="12"
+            r="10"
+            stroke="currentColor"
+            strokeWidth="4"
+          />
+          <path
+            className="opacity-75"
+            fill="currentColor"
+            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+          />
+        </svg>
+      </div>
+    );
+  }
+
+  if (alerts.length === 0) {
+    return (
+      <div className="rounded-xl border border-gray-200 bg-white p-8 text-center">
+        <p className="text-sm text-gray-500">No alerts yet</p>
+      </div>
+    );
+  }
 
   return (
     <div className="rounded-xl border border-gray-200 bg-white">
@@ -40,7 +86,7 @@ export function RecentAlerts() {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
-            {recent.map((alert) => {
+            {alerts.map((alert) => {
               const src = sourceLabels[alert.source] ?? {
                 label: alert.source,
                 color: "bg-gray-400",
@@ -53,7 +99,7 @@ export function RecentAlerts() {
                     </span>
                   </td>
                   <td className="px-6 py-3 text-sm text-gray-600">
-                    {alert.customerEmail}
+                    {alert.customerEmail ?? "—"}
                   </td>
                   <td className="px-6 py-3 text-sm font-medium text-gray-900">
                     ${(alert.amount / 100).toFixed(2)}
@@ -66,7 +112,7 @@ export function RecentAlerts() {
                       {src.label}
                     </span>
                   </td>
-                  <td className="px-6 py-3 text-sm text-gray-500 capitalize">
+                  <td className="px-6 py-3 text-sm capitalize text-gray-500">
                     {alert.reasonCategory.replace("_", " ")}
                   </td>
                   <td className="px-6 py-3">

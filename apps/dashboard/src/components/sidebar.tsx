@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useAuth } from "@/lib/auth-context";
 
 const navItems = [
   {
@@ -45,6 +46,7 @@ const navItems = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { merchant, logout } = useAuth();
 
   return (
     <aside className="fixed left-0 top-0 z-40 flex h-screen w-64 flex-col bg-sidebar-bg text-white">
@@ -85,12 +87,35 @@ export function Sidebar() {
       <div className="border-t border-sidebar-border p-4">
         <div className="flex items-center gap-3">
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-600 text-sm font-medium">
-            A
+            {merchant?.name?.charAt(0)?.toUpperCase() ?? "?"}
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="truncate text-sm font-medium">Acme SaaS</p>
-            <p className="truncate text-xs text-gray-400">acme@company.com</p>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-medium">
+              {merchant?.name ?? "—"}
+            </p>
+            <p className="truncate text-xs text-gray-400">
+              {merchant?.email ?? "—"}
+            </p>
           </div>
+          <button
+            onClick={logout}
+            className="rounded-lg p-1.5 text-gray-400 hover:bg-sidebar-hover hover:text-white"
+            title="Sign out"
+          >
+            <svg
+              className="h-4 w-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth={1.5}
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9"
+              />
+            </svg>
+          </button>
         </div>
       </div>
     </aside>
