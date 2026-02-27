@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { TopBar } from "@/components/top-bar";
+import { CreatePolicy } from "@/components/create-policy";
 import { getPolicies, deletePolicy } from "@/lib/api";
 import type { Policy, PolicyCondition } from "@qarta/shared";
 
@@ -39,6 +40,7 @@ export default function PoliciesPage() {
   const [policies, setPolicies] = useState<Policy[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [showCreate, setShowCreate] = useState(false);
 
   const fetchPolicies = useCallback(async () => {
     try {
@@ -78,6 +80,12 @@ export default function PoliciesPage() {
               Define rules for how alerts are handled automatically.
             </p>
           </div>
+          <button
+            onClick={() => setShowCreate(true)}
+            className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
+          >
+            Create Policy
+          </button>
         </div>
 
         {loading ? (
@@ -201,6 +209,16 @@ export default function PoliciesPage() {
             wins.
           </p>
         </div>
+
+        {showCreate && (
+          <CreatePolicy
+            onClose={() => setShowCreate(false)}
+            onCreated={() => {
+              setShowCreate(false);
+              fetchPolicies();
+            }}
+          />
+        )}
       </div>
     </>
   );

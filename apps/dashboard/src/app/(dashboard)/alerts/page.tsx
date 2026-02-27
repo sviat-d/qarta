@@ -5,6 +5,7 @@ import { TopBar } from "@/components/top-bar";
 import { StatusBadge } from "@/components/status-badge";
 import { AlertDetail } from "@/components/payment-detail";
 import { getAlerts } from "@/lib/api";
+import { useDebounce } from "@/lib/use-debounce";
 import type { Alert, AlertStatus } from "@qarta/shared";
 
 const PAGE_SIZE = 15;
@@ -30,6 +31,7 @@ export default function AlertsPage() {
     "all",
   );
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 300);
   const [page, setPage] = useState(1);
   const [selectedAlert, setSelectedAlert] = useState<Alert | null>(null);
   const [alerts, setAlerts] = useState<Alert[]>([]);
@@ -43,7 +45,7 @@ export default function AlertsPage() {
         page,
         perPage: PAGE_SIZE,
         status: statusFilter !== "all" ? statusFilter : undefined,
-        search: search || undefined,
+        search: debouncedSearch || undefined,
       });
       setAlerts(res.data);
       setTotal(res.meta.total);
@@ -52,7 +54,7 @@ export default function AlertsPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, statusFilter, search]);
+  }, [page, statusFilter, debouncedSearch]);
 
   useEffect(() => {
     fetchAlerts();
