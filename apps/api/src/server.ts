@@ -9,6 +9,7 @@ import { policyRoutes } from "./routes/policies.js";
 import { outcomesRoutes } from "./routes/outcomes.js";
 import { webhookRoutes } from "./routes/webhooks.js";
 import { connectRoutes } from "./routes/connect.js";
+import { authRoutes } from "./routes/auth.js";
 
 async function buildServer() {
   const app = Fastify({
@@ -40,6 +41,7 @@ async function buildServer() {
   await app.register(outcomesRoutes, { prefix: "/v1/outcomes" });
   await app.register(webhookRoutes, { prefix: "/v1/webhooks" });
   await app.register(connectRoutes, { prefix: "/v1/connect" });
+  await app.register(authRoutes, { prefix: "/v1/auth" });
 
   return app;
 }

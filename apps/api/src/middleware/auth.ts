@@ -61,6 +61,49 @@ export async function authenticateApiKey(
   };
 }
 
+/**
+ * JWT authentication middleware for dashboard routes.
+ * Merchants authenticate via `Authorization: Bearer <jwt-token>` header.
+ */
+export async function authenticateJwt(
+  request: FastifyRequest,
+  reply: FastifyReply,
+) {
+  const { extractMerchantFromJwt } = await import("../routes/auth.js");
+
+  const payload = extractMerchantFromJwt(request.headers.authorization);
+  if (!payload) {
+    return reply.status(401).send({
+      success: false,
+      error: {
+        code: "UNAUTHORIZED",
+        message: "Invalid or expired token",
+      },
+    });
+  }
+
+  const merchant = await db.query.merchants.findFirst({
+    where: eq(schema.merchants.id, payload.merchantId),
+  });
+
+  if (!merchant) {
+    return reply.status(401).send({
+      success: false,
+      error: {
+        code: "UNAUTHORIZED",
+        message: "Merchant not found",
+      },
+    });
+  }
+
+  request.merchant = {
+    id: merchant.id,
+    name: merchant.name,
+    email: merchant.email,
+    stripeAccountId: merchant.stripeAccountId,
+  };
+}
+
 export function hashApiKey(apiKey: string): string {
   return createHash("sha256")
     .update(apiKey + config.API_KEY_SALT)

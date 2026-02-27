@@ -59,7 +59,8 @@ export const auditActorEnum = pgEnum("audit_actor", ["system", "user"]);
 export const merchants = pgTable("merchants", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
-  email: text("email").notNull(),
+  email: text("email").notNull().unique(),
+  passwordHash: text("password_hash").notNull(),
   apiKeyHash: text("api_key_hash").notNull(),
   stripeAccountId: text("stripe_account_id"),
   onboardedAt: timestamp("onboarded_at"),

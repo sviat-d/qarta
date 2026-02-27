@@ -23,6 +23,7 @@ const envSchema = z.object({
   DASHBOARD_URL: z.string().default("http://localhost:3001"),
 
   API_KEY_SALT: z.string().default("dev-salt-change-in-production"),
+  JWT_SECRET: z.string().default("dev-jwt-secret-change-in-production"),
 });
 
 export type Env = z.infer<typeof envSchema>;
