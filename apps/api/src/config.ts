@@ -19,6 +19,10 @@ const envSchema = z.object({
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
   STRIPE_CLIENT_ID: z.string().optional(), // for OAuth Connect
 
+  // URLs
+  API_BASE_URL: z.string().default("http://localhost:4000"),
+  DASHBOARD_URL: z.string().default("http://localhost:3001"),
+
   API_KEY_SALT: z.string().default("dev-salt-change-in-production"),
 });
 
