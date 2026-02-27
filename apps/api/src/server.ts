@@ -25,7 +25,10 @@ async function buildServer() {
 
   // Plugins
   await app.register(cors, {
-    origin: config.NODE_ENV === "production" ? "https://qarta.eu" : true,
+    origin:
+      config.NODE_ENV === "production"
+        ? config.CORS_ORIGINS.split(",").map((s) => s.trim())
+        : true,
   });
 
   await app.register(helmet);
