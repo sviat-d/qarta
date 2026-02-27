@@ -1,49 +1,49 @@
-# Qarta — Smarter Payments for SaaS
+# Qarta — Chargeback Deflection for Stripe SaaS
 
 ## What is Qarta?
 
-Qarta is a payment engine for SaaS companies. We are NOT a bank, NOT a PSP, NOT a payment gateway. We are an optimization layer that sits on top of payment providers (Stripe, Coinbase Commerce, etc.).
+Qarta is a chargeback deflection SaaS for Stripe-first subscription businesses. We intercept pre-dispute signals, apply auto-refund policies, and protect your Stripe dispute ratio — before chargebacks happen.
 
-**Core value proposition:** One API. One integration. More revenue. Less risk.
+**Core value proposition:** Stop chargebacks before they hit your Stripe account. Protect your dispute ratio. Save revenue automatically.
 
 ## What we solve
 
-SaaS companies lose revenue to:
-- Declined payments (soft declines, card failures)
-- Chargebacks and disputes
-- Stripe account monitoring/freezing risk
-- No fallback when a PSP declines
-- Failed subscription renewals (involuntary churn)
-- International payment complexity
+SaaS companies on Stripe lose revenue and face account risk from:
+- Chargebacks and disputes (each costs $15-25 in fees + lost revenue)
+- Stripe account monitoring when dispute rate crosses 0.75%
+- Stripe account freezes from high dispute/fraud rates (VAMP programme)
+- No pre-dispute visibility — chargebacks arrive after the fact
+- Manual dispute triage eating team time
+- Failed subscription renewals causing involuntary churn
 
-Stripe handles 80% perfectly. Qarta optimizes the other 20%.
+## What's inside
 
-## What's inside (not marketing terms)
+- **Pre-dispute alert ingestion** — Stripe Early Fraud Warnings (EFW) + dispute events
+- **Auto-refund policy engine** — Rules based on amount, reason, customer history
+- **Safety rails** — Max refunds/day, max per-customer, amount caps
+- **Outcomes dashboard** — Disputes avoided, ratio trend, fees saved, time saved
+- **Slack/email notifications** — Real-time alerts on actions taken
+- **Manual review queue** — Escalation for cases that don't match policies
 
-- Multi-PSP routing (Stripe + Coinbase Commerce, more later)
-- Smart retry logic for soft declines
-- Chargeback detection & automation
-- Fallback between providers
-- Subscription optimization
-- Crypto rails (USDT/USDC via Coinbase Commerce)
+Future (Phase 2+): Ethoca/Verifi network alerts, smarter retry, risk scoring
 
-## We do NOT sell
+## We sell the RESULT
 
-- "Payment orchestration" as a term
-- "Another payment gateway"
-- "Crypto gateway"
-- "Chargeback tool"
+- "We reduced your dispute rate from 0.8% to 0.3%"
+- "We saved you $4,200 in dispute fees last month"
+- "We auto-resolved 47 pre-disputes before they became chargebacks"
 
-We sell the **result**: More approved payments. Fewer chargebacks. One integration.
+Not: "We have alerts" or "We have a chargeback tool"
 
 ## Target ICP
 
 - SaaS / subscription businesses
-- $300k–5M ARR
-- Stripe-first
-- 2k–50k transactions/month
-- International cards
-- Recurring billing
+- $200k–3M ARR
+- Stripe-first (Stripe is primary PSP)
+- 1k–20k transactions/month
+- No dedicated risk/payments team
+- Recurring billing with trials, upgrades, cancellations
+- Segments: EdTech, AI SaaS, Creator tools, B2C subscription SaaS
 
 ## Project Structure
 
@@ -51,7 +51,8 @@ We sell the **result**: More approved payments. Fewer chargebacks. One integrati
 qarta/
 ├── apps/
 │   ├── web/              # Next.js 14 landing page (qarta.eu)
-│   └── api/              # Fastify payment engine API
+│   ├── api/              # Fastify chargeback deflection API
+│   └── dashboard/        # Next.js 14 merchant dashboard
 ├── packages/
 │   ├── shared/           # Shared types, utils, constants
 │   ├── ui/               # UI components (Radix + Tailwind)
@@ -67,12 +68,12 @@ qarta/
 |-----------|-----------|
 | Monorepo | Turborepo + npm workspaces |
 | Landing | Next.js 14 (App Router) + Tailwind + Radix UI |
+| Dashboard | Next.js 14 (App Router) + Tailwind |
 | API | Fastify + TypeScript |
 | Database | PostgreSQL + Drizzle ORM |
 | Cache/Queues | Redis (+ BullMQ planned) |
-| Fiat PSP | Stripe |
-| Crypto PSP | Coinbase Commerce |
-| Deploy | Vercel (web) + Railway (api) |
+| PSP | Stripe (only) |
+| Deploy | Vercel (web + dashboard) + Railway (api) |
 
 ## Development Commands
 
@@ -104,30 +105,38 @@ npm run type-check
 
 ## Key Architecture Decisions
 
-1. **PSP Adapter pattern** (`apps/api/src/providers/`): Each PSP implements the `PspAdapter` interface. Adding a new provider = implementing one interface.
+1. **Stripe-first, Stripe-only (v1)**: No multi-PSP. Stripe webhook events + EFW are the signal source. Refunds executed via Stripe Refunds API.
 
-2. **Smart routing** (`apps/api/src/services/payment-router.ts`): Decides which PSP handles a payment based on method, priority, and fallback rules.
+2. **Alert → Policy → Action → Outcome pipeline**: Every Stripe event flows through: ingestion → matching → policy evaluation → action execution → outcome recording.
 
-3. **Soft/hard decline classification**: Soft declines get retried with exponential backoff. Hard declines fail immediately.
+3. **Policy engine**: Rules defined by merchant: amount thresholds, reason categories, safety caps (max refunds/day, max per-customer). Policies are evaluated in priority order.
 
-4. **Shared types** (`packages/shared/`): Domain types and constants used by both frontend and backend.
+4. **Safety rails first**: Auto-refund is powerful but dangerous. Every action has audit logs, daily caps, per-customer limits, and manual escalation fallback.
 
-5. **UI components** (`packages/ui/`): Headless Radix primitives styled with Tailwind. Design comes from Figma (professional UX/UI designer).
+5. **Outcomes-driven dashboard**: The product IS the dashboard. Merchants see: disputes prevented, ratio trend, fees saved, automation rate — not raw alerts.
+
+6. **Shared types** (`packages/shared/`): Domain types and constants used by both frontend and backend.
 
 ## API Endpoints (v1)
 
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/health` | Health check |
-| POST | `/v1/payments` | Create a payment |
-| GET | `/v1/payments/:id` | Get payment status |
-| GET | `/v1/payments` | List payments |
-| POST | `/v1/webhooks/stripe` | Stripe webhook handler |
-| POST | `/v1/webhooks/coinbase` | Coinbase webhook handler |
+| POST | `/v1/webhooks/stripe` | Stripe webhook handler (EFW + disputes) |
+| GET | `/v1/alerts` | List alerts for merchant |
+| GET | `/v1/alerts/:id` | Get alert details |
+| POST | `/v1/policies` | Create/update refund policy |
+| GET | `/v1/policies` | List active policies |
+| DELETE | `/v1/policies/:id` | Delete a policy |
+| GET | `/v1/actions` | List refund actions taken |
+| GET | `/v1/outcomes` | Dashboard metrics (disputes avoided, ratio, savings) |
+| POST | `/v1/alerts/:id/resolve` | Manually resolve an alert |
+| GET | `/v1/connect/stripe` | Initiate Stripe OAuth connect |
+| GET | `/v1/connect/stripe/callback` | Handle Stripe OAuth callback |
 
 ## Database Schema
 
-Tables: `merchants`, `payments`, `payment_attempts`, `subscriptions`, `chargebacks`, `webhook_events`
+Core tables: `merchants`, `stripe_connections`, `alerts`, `policies`, `refund_actions`, `audit_log`, `webhook_events`
 
 See `apps/api/src/db/schema.ts` for full Drizzle schema.
 
@@ -136,10 +145,9 @@ See `apps/api/src/db/schema.ts` for full Drizzle schema.
 API requires these env vars (see `apps/api/.env.example`):
 - `DATABASE_URL` — PostgreSQL connection string
 - `REDIS_URL` — Redis connection string
-- `STRIPE_SECRET_KEY` — Stripe API key
+- `STRIPE_SECRET_KEY` — Stripe platform API key (for OAuth)
 - `STRIPE_WEBHOOK_SECRET` — Stripe webhook signing secret
-- `COINBASE_COMMERCE_API_KEY` — Coinbase Commerce API key
-- `COINBASE_COMMERCE_WEBHOOK_SECRET` — Coinbase Commerce webhook secret
+- `STRIPE_CLIENT_ID` — Stripe OAuth client ID (for Connect)
 
 ## Code Conventions
 
@@ -148,4 +156,22 @@ API requires these env vars (see `apps/api/.env.example`):
 - Use `@qarta/shared` types across apps
 - API responses follow `ApiResponse<T>` shape
 - All amounts in cents (integer) in the database, converted at API boundary
-- PSP adapters are stateless — config passed per-call
+- Every auto-refund action has an audit log entry
+- Stripe webhook events are stored raw before processing (idempotency)
+
+## Competitive Positioning
+
+**Competitors:** Chargeflow ($29/deflection), Chargeblast, ChargebackStop, Midigator, OutCharge
+
+**Our wedge:**
+- Stripe-only = simpler onboarding (10 min vs days)
+- SaaS-focused = understand subscription patterns
+- Self-serve = no enterprise sales demo needed
+- Transparent pricing = flat fee or hybrid (subscription + per-deflection)
+- Outcomes-first dashboard = CFO-credible reporting
+
+## Pricing Strategy
+
+- **Free tier**: First 10 alerts/month (adoption friction killer)
+- **Pro**: $199–$399/month + $15–$20 per deflected chargeback
+- **Growth**: Volume discounts for 50+ deflections/month

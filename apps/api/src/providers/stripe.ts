@@ -1,90 +1,61 @@
 import Stripe from "stripe";
-import type {
-  CreatePaymentRequest,
-  CreatePaymentResponse,
-  PaymentStatus,
-} from "@qarta/shared";
-import type { PspAdapter } from "./base.js";
 
-export class StripeAdapter implements PspAdapter {
-  readonly name = "stripe" as const;
+/**
+ * Stripe client factory.
+ * Used by refund-executor and webhook verification.
+ */
+export function createStripeClient(secretKey: string): Stripe {
+  return new Stripe(secretKey);
+}
 
-  private getClient(secretKey: string): Stripe {
-    return new Stripe(secretKey, { apiVersion: "2024-12-18.acacia" });
-  }
+/**
+ * Verify a Stripe webhook signature.
+ */
+export function verifyWebhookSignature(
+  payload: string | Buffer,
+  signature: string,
+  webhookSecret: string,
+): Stripe.Event {
+  const stripe = new Stripe(webhookSecret);
+  return stripe.webhooks.constructEvent(payload, signature, webhookSecret);
+}
 
-  async createPayment(
-    request: CreatePaymentRequest,
-    merchantConfig: Record<string, string>,
-  ): Promise<CreatePaymentResponse> {
-    const stripe = this.getClient(merchantConfig["secretKey"]!);
+/**
+ * Look up a charge to get amount, currency, and customer details.
+ * Needed when processing EFW alerts (which only contain charge ID).
+ */
+export async function getCharge(
+  secretKey: string,
+  chargeId: string,
+): Promise<{
+  amount: number;
+  currency: string;
+  customerId?: string;
+  customerEmail?: string;
+  paymentIntentId?: string;
+  cardLast4?: string;
+  cardBrand?: string;
+}> {
+  const stripe = createStripeClient(secretKey);
+  const charge = await stripe.charges.retrieve(chargeId, {
+    expand: ["customer"],
+  });
 
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round(request.amount * 100), // Stripe uses cents
-      currency: request.currency.toLowerCase(),
-      customer: request.customerId,
-      metadata: request.metadata as Record<string, string>,
-      automatic_payment_methods: { enabled: true },
-    });
+  const card = charge.payment_method_details?.card;
+  const customer = charge.customer as Stripe.Customer | null;
 
-    return {
-      id: paymentIntent.id,
-      status: this.mapStatus(paymentIntent.status),
-      clientSecret: paymentIntent.client_secret ?? undefined,
-      provider: "stripe",
-    };
-  }
-
-  async getPaymentStatus(
-    providerTransactionId: string,
-    merchantConfig: Record<string, string>,
-  ): Promise<PaymentStatus> {
-    const stripe = this.getClient(merchantConfig["secretKey"]!);
-    const pi = await stripe.paymentIntents.retrieve(providerTransactionId);
-    return this.mapStatus(pi.status);
-  }
-
-  async refundPayment(
-    providerTransactionId: string,
-    amount: number | undefined,
-    merchantConfig: Record<string, string>,
-  ): Promise<{ success: boolean; refundId?: string }> {
-    const stripe = this.getClient(merchantConfig["secretKey"]!);
-
-    const refund = await stripe.refunds.create({
-      payment_intent: providerTransactionId,
-      amount: amount ? Math.round(amount * 100) : undefined,
-    });
-
-    return { success: refund.status === "succeeded", refundId: refund.id };
-  }
-
-  verifyWebhookSignature(
-    payload: string | Buffer,
-    signature: string,
-    secret: string,
-  ): boolean {
-    try {
-      const stripe = new Stripe(secret);
-      stripe.webhooks.constructEvent(payload, signature, secret);
-      return true;
-    } catch {
-      return false;
-    }
-  }
-
-  private mapStatus(
-    stripeStatus: Stripe.PaymentIntent.Status,
-  ): PaymentStatus {
-    const statusMap: Record<string, PaymentStatus> = {
-      requires_payment_method: "pending",
-      requires_confirmation: "pending",
-      requires_action: "pending",
-      processing: "processing",
-      requires_capture: "processing",
-      canceled: "failed",
-      succeeded: "succeeded",
-    };
-    return statusMap[stripeStatus] ?? "pending";
-  }
+  return {
+    amount: charge.amount,
+    currency: charge.currency.toUpperCase(),
+    customerId:
+      typeof charge.customer === "string" ? charge.customer : customer?.id,
+    customerEmail:
+      customer?.email ?? charge.billing_details?.email ?? undefined,
+    paymentIntentId:
+      typeof charge.payment_intent === "string"
+        ? charge.payment_intent
+        : undefined,
+    cardLast4: card?.last4 ?? undefined,
+    cardBrand: card?.brand ?? undefined,
+  };
 }

@@ -11,17 +11,17 @@ export function CTA() {
 
         <div className="relative">
           <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
-            Stop losing revenue to failed payments
+            Stop losing revenue to chargebacks
           </h2>
           <p className="mx-auto mt-4 max-w-xl text-lg text-slate-400">
-            Join the early access list. Be the first to optimize your SaaS
-            payments with Qarta.
+            Join the early access list. Protect your Stripe dispute ratio
+            and save money on every prevented chargeback.
           </p>
           <div className="mt-8">
             <WaitlistForm variant="dark" />
           </div>
           <p className="mt-4 text-sm text-slate-600">
-            Free during early access. No credit card required.
+            Free during early access. 10 min setup. No code changes.
           </p>
         </div>
       </div>

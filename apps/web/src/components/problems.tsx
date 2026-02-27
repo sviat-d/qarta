@@ -1,39 +1,39 @@
 const problems = [
   {
-    icon: "💸",
-    title: "Failed Payments",
+    icon: "$$",
+    title: "Every Chargeback Costs You Real Money",
     description:
-      "Up to 15% of recurring charges fail due to soft declines, expired cards, and processing errors. That's revenue you already earned — gone.",
+      "Each dispute means the transaction amount + $15-25 in Stripe fees. For a $50 subscription, that's a 50%+ loss — and it adds up fast.",
   },
   {
-    icon: "⚠️",
-    title: "Chargebacks Eat Your Margins",
+    icon: "!!",
+    title: "Stripe Flags You at 0.75%",
     description:
-      "Every chargeback costs the transaction amount + $15–25 in fees. Cross 0.75% dispute rate and Stripe flags your account for monitoring.",
+      "Cross the 0.75% dispute rate threshold and Stripe puts you into monitoring. Cross 0.9% and you enter the VAMP programme — risking account termination.",
   },
   {
-    icon: "🔒",
-    title: "Stripe Account Freeze Risk",
+    icon: ">>",
+    title: "Chargebacks Arrive Too Late",
     description:
-      "High dispute rates or fraud signals can freeze your Stripe account overnight — cutting off your entire payment flow with no warning.",
+      "By the time you see a chargeback in your Stripe dashboard, the window to act has passed. You needed to refund proactively — hours or days earlier.",
   },
   {
-    icon: "🔌",
-    title: "Single Provider = Single Point of Failure",
+    icon: "??",
+    title: "No Visibility Into Pre-Dispute Signals",
     description:
-      "When your only PSP declines a payment or has an outage, you have zero alternatives. The customer just sees 'payment failed'.",
+      "Stripe sends Early Fraud Warnings before disputes happen. Most SaaS teams don't even know they exist — or how to act on them automatically.",
   },
   {
-    icon: "🔄",
-    title: "Subscription Churn from Failed Renewals",
+    icon: "//",
+    title: "Manual Triage Wastes Your Team's Time",
     description:
-      "Involuntary churn from failed renewals accounts for 20–40% of total churn in SaaS. Most companies don't optimize retry logic at all.",
+      "Without automation, every dispute alert requires someone to investigate, decide, and refund manually. That's hours per week on a problem that should be automated.",
   },
   {
-    icon: "🌍",
-    title: "International Payment Complexity",
+    icon: "<>",
+    title: "SaaS Subscription Patterns Cause Friendly Fraud",
     description:
-      "Cross-border cards, local payment methods, multi-currency — expanding internationally multiplies payment failure rates.",
+      "Free trials that convert, forgotten subscriptions, upgrade confusion — SaaS billing patterns trigger chargebacks even from happy customers.",
   },
 ];
 
@@ -46,11 +46,11 @@ export function Problems() {
             The Problem
           </p>
           <h2 className="mt-3 text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
-            SaaS payments are harder than they look
+            Chargebacks quietly destroy SaaS margins
           </h2>
           <p className="mx-auto mt-4 max-w-2xl text-lg text-gray-600">
-            Stripe handles the happy path. But the edge cases — declines,
-            chargebacks, outages — are where you quietly lose thousands every month.
+            Most Stripe SaaS companies don&apos;t think about chargebacks — until
+            they&apos;re in monitoring. By then, it&apos;s expensive and stressful.
           </p>
         </div>
 
@@ -60,7 +60,9 @@ export function Problems() {
               key={problem.title}
               className="group rounded-2xl border border-gray-100 bg-white p-6 transition-all hover:border-gray-200 hover:shadow-lg"
             >
-              <div className="mb-4 text-2xl">{problem.icon}</div>
+              <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-red-50 font-mono text-sm font-bold text-red-500">
+                {problem.icon}
+              </div>
               <h3 className="text-lg font-semibold text-gray-900">
                 {problem.title}
               </h3>

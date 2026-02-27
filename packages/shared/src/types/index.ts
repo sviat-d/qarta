@@ -1,127 +1,201 @@
 // ============================================================
-// Qarta Payment Engine — Core Domain Types
+// Qarta Chargeback Deflection — Core Domain Types
 // ============================================================
 
-// --- PSP Providers ---
+// --- Alert Sources ---
 
-export type PspProvider = "stripe" | "coinbase_commerce";
+export type AlertSource =
+  | "stripe_efw"          // Stripe Early Fraud Warning
+  | "stripe_dispute"      // Stripe dispute event
+  | "stripe_inquiry"      // Stripe inquiry (pre-dispute)
+  | "manual";             // Manually created alert
 
-export type PaymentMethod = "card" | "crypto";
+// --- Alert Status ---
 
-export type CryptoCurrency = "USDT" | "USDC" | "BTC" | "ETH";
+export type AlertStatus =
+  | "new"                 // Just ingested, not yet evaluated
+  | "evaluating"          // Policy engine is processing
+  | "auto_refunded"       // Auto-refund executed by policy
+  | "escalated"           // Sent to manual review queue
+  | "manually_resolved"   // Resolved by operator
+  | "dismissed"           // Dismissed (no action needed)
+  | "expired";            // Timed out without action
 
-// --- Payment Status ---
+// --- Dispute Reason Categories ---
 
-export type PaymentStatus =
+export type DisputeReasonCategory =
+  | "fraudulent"
+  | "unrecognized"
+  | "duplicate"
+  | "product_not_received"
+  | "product_unacceptable"
+  | "subscription_canceled"
+  | "general";
+
+// --- Refund Action Status ---
+
+export type RefundActionStatus =
   | "pending"
-  | "processing"
-  | "succeeded"
+  | "executed"
   | "failed"
-  | "refunded"
-  | "partially_refunded"
-  | "disputed";
+  | "skipped";            // Skipped due to safety rails
 
-export type DeclineType = "hard" | "soft";
+// --- Policy Rule Operator ---
+
+export type PolicyOperator = "lt" | "lte" | "gt" | "gte" | "eq" | "in";
 
 // --- Core Entities ---
 
 export interface Merchant {
   id: string;
   name: string;
+  email: string;
   apiKeyHash: string;
-  pspConfigs: PspConfig[];
+  stripeAccountId?: string;
+  onboardedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
 
-export interface PspConfig {
-  provider: PspProvider;
+export interface StripeConnection {
+  id: string;
+  merchantId: string;
+  stripeAccountId: string;
+  accessToken: string;
+  refreshToken?: string;
+  scope: string;
+  livemode: boolean;
+  connectedAt: Date;
+}
+
+export interface Alert {
+  id: string;
+  merchantId: string;
+  source: AlertSource;
+  status: AlertStatus;
+  stripeChargeId?: string;
+  stripePaymentIntentId?: string;
+  stripeDisputeId?: string;
+  stripeEfwId?: string;
+  amount: number;           // cents
+  currency: string;
+  reasonCategory: DisputeReasonCategory;
+  reasonRaw?: string;       // raw reason from Stripe
+  customerEmail?: string;
+  customerId?: string;
+  cardLast4?: string;
+  cardBrand?: string;
+  isActionable: boolean;    // EFW actionable flag
+  metadata?: Record<string, unknown>;
+  resolvedAt?: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface Policy {
+  id: string;
+  merchantId: string;
+  name: string;
   enabled: boolean;
-  priority: number;
-  credentials: Record<string, string>;
-}
-
-export interface Payment {
-  id: string;
-  merchantId: string;
-  externalId?: string;
-  amount: number;
-  currency: string;
-  status: PaymentStatus;
-  method: PaymentMethod;
-  provider?: PspProvider;
-  customerId?: string;
-  metadata?: Record<string, unknown>;
-  attempts: PaymentAttempt[];
+  priority: number;         // lower = evaluated first
+  conditions: PolicyCondition[];
+  action: PolicyAction;
+  safetyRails: SafetyRails;
   createdAt: Date;
   updatedAt: Date;
 }
 
-export interface PaymentAttempt {
+export interface PolicyCondition {
+  field: "amount" | "reason_category" | "source" | "card_brand" | "is_actionable";
+  operator: PolicyOperator;
+  value: string | number | string[];
+}
+
+export interface PolicyAction {
+  type: "auto_refund" | "escalate" | "dismiss";
+  cancelSubscription?: boolean;
+}
+
+export interface SafetyRails {
+  maxRefundsPerDay: number;
+  maxRefundsPerCustomer: number;
+  maxRefundAmount: number;  // cents — won't auto-refund above this
+}
+
+export interface RefundAction {
   id: string;
-  paymentId: string;
-  provider: PspProvider;
-  status: PaymentStatus;
-  declineCode?: string;
-  declineType?: DeclineType;
-  providerTransactionId?: string;
+  alertId: string;
+  merchantId: string;
+  policyId?: string;        // null if manual
+  status: RefundActionStatus;
+  refundAmount: number;     // cents
+  currency: string;
+  stripeRefundId?: string;
+  stripeChargeId: string;
+  canceledSubscription: boolean;
+  failureReason?: string;
+  executedAt?: Date;
   createdAt: Date;
 }
 
-export interface Subscription {
+export interface AuditLogEntry {
   id: string;
   merchantId: string;
-  customerId: string;
-  planId: string;
-  status: "active" | "past_due" | "canceled" | "paused";
-  currentPeriodStart: Date;
-  currentPeriodEnd: Date;
+  alertId?: string;
+  actionId?: string;
+  actor: "system" | "user";
+  event: string;
+  details?: Record<string, unknown>;
   createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface Chargeback {
-  id: string;
-  paymentId: string;
-  merchantId: string;
-  amount: number;
-  currency: string;
-  reason: string;
-  status: "open" | "under_review" | "won" | "lost";
-  provider: PspProvider;
-  providerDisputeId?: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-// --- API Request/Response ---
-
-export interface CreatePaymentRequest {
-  amount: number;
-  currency: string;
-  method?: PaymentMethod;
-  customerId?: string;
-  returnUrl?: string;
-  metadata?: Record<string, unknown>;
-}
-
-export interface CreatePaymentResponse {
-  id: string;
-  status: PaymentStatus;
-  clientSecret?: string;
-  checkoutUrl?: string;
-  provider: PspProvider;
 }
 
 export interface WebhookEvent {
   id: string;
+  stripeEventId: string;
   type: string;
-  provider: PspProvider;
   payload: Record<string, unknown>;
+  processedAt?: Date;
   createdAt: Date;
 }
 
-// --- API Error ---
+// --- Dashboard / Outcomes ---
+
+export interface OutcomesMetrics {
+  alertsTotal: number;
+  alertsAutoResolved: number;
+  alertsEscalated: number;
+  alertsDismissed: number;
+  disputesAvoided: number;
+  disputeRateCurrent: number;
+  disputeRatePrevious: number;
+  totalRefunded: number;    // cents
+  feesAvoided: number;      // cents (disputes avoided * avg dispute fee)
+  automationRate: number;   // percentage
+  avgResponseTime: number;  // milliseconds
+}
+
+export interface OutcomesTimeSeries {
+  date: string;
+  alerts: number;
+  autoResolved: number;
+  escalated: number;
+  disputeRate: number;
+}
+
+// --- API Request/Response ---
+
+export interface CreatePolicyRequest {
+  name: string;
+  priority: number;
+  conditions: PolicyCondition[];
+  action: PolicyAction;
+  safetyRails: SafetyRails;
+}
+
+export interface ResolveAlertRequest {
+  action: "refund" | "dismiss";
+  note?: string;
+}
 
 export interface ApiError {
   code: string;
@@ -133,4 +207,14 @@ export interface ApiResponse<T> {
   success: boolean;
   data?: T;
   error?: ApiError;
+}
+
+export interface PaginatedResponse<T> {
+  success: boolean;
+  data: T[];
+  meta: {
+    total: number;
+    page: number;
+    perPage: number;
+  };
 }

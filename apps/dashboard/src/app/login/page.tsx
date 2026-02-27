@@ -29,7 +29,7 @@ export default function LoginPage() {
             Sign in to Qarta
           </h1>
           <p className="mt-2 text-sm text-gray-500">
-            Manage your payments, track revenue, optimize rates
+            Manage alerts, policies, and dispute prevention outcomes
           </p>
         </div>
 
@@ -87,9 +87,24 @@ export default function LoginPage() {
             >
               {loading ? (
                 <span className="inline-flex items-center gap-2">
-                  <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  <svg
+                    className="h-4 w-4 animate-spin"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                    />
                   </svg>
                   Signing in...
                 </span>
@@ -114,7 +129,7 @@ export default function LoginPage() {
 
         {/* Footer */}
         <p className="mt-8 text-center text-xs text-gray-400">
-          Qarta &mdash; Smarter Payments for SaaS
+          Qarta &mdash; Chargeback Deflection for Stripe SaaS
         </p>
       </div>
     </div>

@@ -1,21 +1,21 @@
 const steps = [
   {
     step: "01",
-    title: "Integrate Once",
+    title: "Connect Stripe",
     description:
-      "Replace your direct Stripe API calls with Qarta's unified API. Same payment flow, same UX — just a different endpoint. Takes less than a day.",
+      "Install the Qarta Stripe app or connect via OAuth. We sync your charges, disputes, and Early Fraud Warnings. Takes 10 minutes, no code changes.",
   },
   {
     step: "02",
-    title: "Connect Providers",
+    title: "Set Your Policies",
     description:
-      "Link your Stripe account and optional fallback providers (Coinbase Commerce, more coming). Configure routing rules in the dashboard — no code changes.",
+      "Define auto-refund rules: amount thresholds, dispute reasons, safety caps per day. Start with our recommended defaults or customize completely.",
   },
   {
     step: "03",
-    title: "Revenue Goes Up",
+    title: "Chargebacks Drop",
     description:
-      "Qarta automatically routes payments, retries declines with smart timing, prevents chargebacks, and falls back between providers. All on autopilot.",
+      "Qarta intercepts pre-dispute signals 24/7, auto-refunds according to your policies, and shows you exactly how much you saved. Dispute ratio stays safe.",
   },
 ];
 
@@ -28,7 +28,7 @@ export function HowItWorks() {
             How It Works
           </p>
           <h2 className="mt-3 text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
-            Up and running in hours, not months
+            Live in 10 minutes. No code changes.
           </h2>
         </div>
 

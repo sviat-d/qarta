@@ -8,32 +8,34 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Qarta — Smarter Payments for SaaS",
+  title: "Qarta — Chargeback Deflection for Stripe SaaS",
   description:
-    "Increase approval rates, reduce chargebacks, and protect your Stripe account. One API. One integration. More revenue. Less risk.",
+    "Stop chargebacks before they happen. Auto-refund pre-dispute alerts, protect your Stripe dispute ratio, and save revenue — on autopilot.",
   keywords: [
-    "SaaS payments",
-    "payment optimization",
-    "chargeback protection",
-    "approval rate",
-    "Stripe optimization",
-    "payment orchestration",
-    "recurring billing",
-    "crypto payments",
+    "chargeback prevention",
+    "chargeback deflection",
+    "Stripe chargebacks",
+    "dispute prevention",
+    "Stripe dispute rate",
+    "SaaS chargeback",
+    "early fraud warning",
+    "auto refund",
+    "Stripe monitoring",
+    "VAMP protection",
   ],
   openGraph: {
-    title: "Qarta — Smarter Payments for SaaS",
+    title: "Qarta — Chargeback Deflection for Stripe SaaS",
     description:
-      "Increase approval rates, reduce chargebacks, and protect your Stripe account.",
+      "Stop chargebacks before they happen. Protect your Stripe dispute ratio automatically.",
     url: "https://qarta.eu",
     siteName: "Qarta",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Qarta — Smarter Payments for SaaS",
+    title: "Qarta — Chargeback Deflection for Stripe SaaS",
     description:
-      "Increase approval rates, reduce chargebacks, and protect your Stripe account.",
+      "Stop chargebacks before they happen. Protect your Stripe dispute ratio automatically.",
   },
 };
 

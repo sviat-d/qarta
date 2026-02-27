@@ -1,75 +1,64 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
-import type { ApiResponse, CreatePaymentResponse } from "@qarta/shared";
+import type { ApiResponse, Alert, PaginatedResponse } from "@qarta/shared";
 
-const createPaymentSchema = z.object({
-  amount: z.number().positive(),
-  currency: z.string().length(3).toUpperCase(),
-  method: z.enum(["card", "crypto"]).optional().default("card"),
-  customerId: z.string().optional(),
-  returnUrl: z.string().url().optional(),
-  metadata: z.record(z.unknown()).optional(),
-});
+/**
+ * Alert routes — view and manage pre-dispute alerts.
+ */
+export async function alertRoutes(app: FastifyInstance) {
+  // List alerts for a merchant
+  app.get("/", async (_request, reply) => {
+    // TODO: Authenticate merchant via API key
+    // TODO: Fetch alerts from database with pagination + filters
 
-export async function paymentRoutes(app: FastifyInstance) {
-  // Create a payment
-  app.post<{
-    Body: z.infer<typeof createPaymentSchema>;
-  }>("/", async (request, reply) => {
-    const parsed = createPaymentSchema.safeParse(request.body);
-
-    if (!parsed.success) {
-      return reply.status(400).send({
-        success: false,
-        error: {
-          code: "VALIDATION_ERROR",
-          message: "Invalid request body",
-          details: parsed.error.format(),
-        },
-      });
-    }
-
-    const { amount, currency, method } = parsed.data;
-
-    // TODO: Implement actual payment creation via PSP providers
-    // This is the scaffold — routing logic, retry logic, and provider integration go here
-
-    const response: ApiResponse<CreatePaymentResponse> = {
+    const response: PaginatedResponse<Alert> = {
       success: true,
-      data: {
-        id: `pay_${Date.now()}`,
-        status: "pending",
-        provider: method === "crypto" ? "coinbase_commerce" : "stripe",
-      },
+      data: [],
+      meta: { total: 0, page: 1, perPage: 20 },
     };
 
-    return reply.status(201).send(response);
+    return reply.send(response);
   });
 
-  // Get payment by ID
+  // Get alert by ID
   app.get<{
     Params: { id: string };
   }>("/:id", async (request, reply) => {
     const { id } = request.params;
 
-    // TODO: Fetch from database
+    // TODO: Fetch alert from database
     return reply.send({
       success: true,
       data: {
         id,
-        status: "pending",
-        message: "Payment lookup not yet implemented",
+        status: "new",
+        message: "Alert lookup not yet implemented",
       },
     });
   });
 
-  // List payments
-  app.get("/", async (_request, reply) => {
-    // TODO: Implement with pagination
+  // Manually resolve an alert
+  app.post<{
+    Params: { id: string };
+    Body: { action: "refund" | "dismiss"; note?: string };
+  }>("/:id/resolve", async (request, reply) => {
+    const { id } = request.params;
+    const body = request.body;
+
+    // TODO: Validate request body
+    // TODO: Fetch alert, verify it's in escalated/new state
+    // TODO: If action=refund, execute refund via Stripe
+    // TODO: Update alert status
+    // TODO: Write audit log
+
+    app.log.info(
+      { alertId: id, action: body.action },
+      "Manual alert resolution",
+    );
+
     return reply.send({
       success: true,
-      data: [],
-      meta: { total: 0, page: 1, perPage: 20 },
+      data: { id, status: body.action === "refund" ? "manually_resolved" : "dismissed" },
     });
   });
 }

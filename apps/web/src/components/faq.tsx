@@ -4,34 +4,34 @@ import { useState } from "react";
 
 const faqs = [
   {
-    question: "Do I need to stop using Stripe?",
+    question: "Do I need to change my Stripe integration?",
     answer:
-      "No. Qarta works on top of Stripe, not instead of it. You keep your Stripe account, your dashboard, your existing setup. Qarta adds a smart routing layer that optimizes what Stripe alone can't — retry logic, fallback providers, and chargeback prevention.",
+      "No. Qarta connects to your existing Stripe account via OAuth or Stripe App. We listen to webhook events (Early Fraud Warnings, disputes) and execute refunds through the Stripe API. Your checkout flow stays exactly the same.",
   },
   {
-    question: "How long does integration take?",
+    question: "What are Early Fraud Warnings (EFWs)?",
     answer:
-      "Less than a day for most SaaS apps. You replace your direct Stripe API calls with Qarta's unified API. Same payment flow, same customer experience. We provide SDKs, docs, and hands-on support during setup.",
+      "EFWs are pre-dispute signals that Stripe receives from card networks. They arrive hours or days before a chargeback is filed. If you proactively refund an actionable EFW, the dispute never happens — no fee, no impact on your dispute ratio.",
   },
   {
-    question: "What payment methods do you support?",
+    question: "Won't auto-refunding lose me money?",
     answer:
-      "Cards via Stripe (Visa, Mastercard, Amex) and stablecoins (USDT, USDC) via Coinbase Commerce. We're adding more providers and local payment methods — the whole point is one API for all of them.",
+      "Compare the costs: a proactive refund loses you the transaction amount but saves you $15-25 in dispute fees, protects your dispute ratio, and avoids Stripe monitoring. For most SaaS, the math strongly favors auto-refunding small amounts — especially for fraud-related alerts.",
   },
   {
-    question: "How do crypto payments work for my SaaS?",
+    question: "What safety controls are there?",
     answer:
-      "Your customer chooses to pay with USDT or USDC at checkout. Coinbase Commerce handles the crypto transaction. You receive the funds just like any other payment. Same API, same dashboard — no crypto complexity on your side.",
+      "You control everything. Set maximum refunds per day, per customer, and maximum refund amount. Alerts that don't match any policy go to a manual review queue. Every action is logged in a full audit trail.",
   },
   {
     question: "What size companies is Qarta for?",
     answer:
-      "SaaS companies doing $300K–$5M ARR with 2,000–50,000 transactions per month. You're big enough that failed payments and chargebacks cost real money, but not so big that you've built an in-house payments team.",
+      "SaaS companies doing $200K-$3M ARR with 1,000-20,000 transactions per month on Stripe. You're big enough that chargebacks cost real money, but not so big that you've hired a dedicated risk team.",
   },
   {
     question: "How much does it cost?",
     answer:
-      "Free during early access. After that, we charge a small percentage on recovered revenue — money you would have lost without Qarta. You only pay when we deliver results. Pricing details coming soon.",
+      "Free during early access — first 10 alerts per month included. After that, Pro plans start at $199/month + a small per-deflection fee. You only pay when we save you from chargebacks. Details coming soon.",
   },
 ];
 

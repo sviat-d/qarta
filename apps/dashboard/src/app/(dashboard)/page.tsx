@@ -1,86 +1,104 @@
 import { TopBar } from "@/components/top-bar";
 import { MetricCard } from "@/components/metric-card";
-import { RevenueChart } from "@/components/revenue-chart";
-import { RecentPayments } from "@/components/recent-payments";
-import { mockMetrics } from "@/lib/mock-data";
-
-function formatCurrency(cents: number): string {
-  return "$" + (cents / 100).toLocaleString("en-US", { minimumFractionDigits: 0 });
-}
+import { AlertChart } from "@/components/revenue-chart";
+import { RecentAlerts } from "@/components/recent-payments";
+import { mockOutcomes } from "@/lib/mock-data";
 
 export default function OverviewPage() {
   return (
     <>
       <TopBar title="Overview" />
       <div className="p-8">
-        {/* Metrics grid */}
+        {/* Key outcomes metrics */}
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
           <MetricCard
-            title="Total Revenue"
-            value={formatCurrency(mockMetrics.totalRevenue)}
-            change={mockMetrics.revenueChange}
-            subtitle="vs last month"
+            title="Disputes Avoided"
+            value={mockOutcomes.disputesAvoided.toString()}
+            change={12}
+            subtitle="this month"
           />
           <MetricCard
-            title="Approval Rate"
-            value={`${mockMetrics.approvalRate}%`}
-            change={mockMetrics.approvalRateChange}
-            subtitle="vs last month"
+            title="Dispute Rate"
+            value={`${mockOutcomes.disputeRateCurrent}%`}
+            change={-55}
+            subtitle={`was ${mockOutcomes.disputeRatePrevious}%`}
           />
           <MetricCard
-            title="Chargeback Rate"
-            value={`${mockMetrics.chargebackRate}%`}
-            change={mockMetrics.chargebackRateChange}
-            subtitle="vs last month"
+            title="Fees Saved"
+            value={`$${(mockOutcomes.feesAvoided / 100).toLocaleString()}`}
+            change={18}
+            subtitle="this month"
           />
           <MetricCard
-            title="Total Payments"
-            value={mockMetrics.totalPayments.toLocaleString()}
-            change={mockMetrics.paymentsChange}
-            subtitle="vs last month"
+            title="Automation Rate"
+            value={`${mockOutcomes.automationRate}%`}
+            change={5.2}
+            subtitle="auto-resolved"
           />
         </div>
 
-        {/* Charts row */}
+        {/* Chart + breakdown row */}
         <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-3">
           <div className="lg:col-span-2">
-            <RevenueChart />
+            <AlertChart />
           </div>
           <div className="rounded-xl border border-gray-200 bg-white p-6">
-            <h3 className="text-sm font-medium text-gray-900">Payment Breakdown</h3>
-            <p className="text-xs text-gray-500">By status</p>
+            <h3 className="text-sm font-medium text-gray-900">
+              Alert Breakdown
+            </h3>
+            <p className="text-xs text-gray-500">By resolution</p>
             <div className="mt-6 space-y-4">
               <BreakdownRow
-                label="Succeeded"
-                count={mockMetrics.successfulPayments}
-                total={mockMetrics.totalPayments}
+                label="Auto-Refunded"
+                count={mockOutcomes.alertsAutoResolved}
+                total={mockOutcomes.alertsTotal}
                 color="bg-green-500"
               />
               <BreakdownRow
-                label="Failed"
-                count={mockMetrics.failedPayments}
-                total={mockMetrics.totalPayments}
-                color="bg-red-500"
+                label="Escalated"
+                count={mockOutcomes.alertsEscalated}
+                total={mockOutcomes.alertsTotal}
+                color="bg-orange-500"
+              />
+              <BreakdownRow
+                label="Dismissed"
+                count={mockOutcomes.alertsDismissed}
+                total={mockOutcomes.alertsTotal}
+                color="bg-gray-400"
               />
               <BreakdownRow
                 label="Pending"
-                count={mockMetrics.pendingPayments}
-                total={mockMetrics.totalPayments}
-                color="bg-yellow-500"
+                count={mockOutcomes.alertsNew}
+                total={mockOutcomes.alertsTotal}
+                color="bg-blue-500"
               />
-              <BreakdownRow
-                label="Disputed"
-                count={mockMetrics.disputedPayments}
-                total={mockMetrics.totalPayments}
-                color="bg-orange-500"
-              />
+            </div>
+
+            {/* Stripe ratio indicator */}
+            <div className="mt-6 border-t border-gray-100 pt-4">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-600">Stripe Threshold</span>
+                <span className="font-medium text-gray-900">0.75%</span>
+              </div>
+              <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-gray-100">
+                <div
+                  className="h-full rounded-full bg-green-500"
+                  style={{
+                    width: `${(mockOutcomes.disputeRateCurrent / 0.75) * 100}%`,
+                  }}
+                />
+              </div>
+              <p className="mt-1 text-xs text-gray-400">
+                You&apos;re at {mockOutcomes.disputeRateCurrent}% — well below
+                monitoring
+              </p>
             </div>
           </div>
         </div>
 
-        {/* Recent payments */}
+        {/* Recent alerts */}
         <div className="mt-8">
-          <RecentPayments />
+          <RecentAlerts />
         </div>
       </div>
     </>
@@ -98,7 +116,7 @@ function BreakdownRow({
   total: number;
   color: string;
 }) {
-  const pct = ((count / total) * 100).toFixed(1);
+  const pct = total > 0 ? ((count / total) * 100).toFixed(1) : "0";
   return (
     <div>
       <div className="flex items-center justify-between text-sm">

@@ -1,40 +1,40 @@
-import type { PaymentStatus } from "@qarta/shared";
+import type { AlertStatus } from "@qarta/shared";
 
 const statusConfig: Record<
-  PaymentStatus,
+  AlertStatus,
   { label: string; className: string }
 > = {
-  succeeded: {
-    label: "Succeeded",
-    className: "bg-green-50 text-green-700",
-  },
-  pending: {
-    label: "Pending",
-    className: "bg-yellow-50 text-yellow-700",
-  },
-  processing: {
-    label: "Processing",
+  new: {
+    label: "New",
     className: "bg-blue-50 text-blue-700",
   },
-  failed: {
-    label: "Failed",
-    className: "bg-red-50 text-red-700",
+  evaluating: {
+    label: "Evaluating",
+    className: "bg-yellow-50 text-yellow-700",
   },
-  refunded: {
-    label: "Refunded",
-    className: "bg-gray-100 text-gray-700",
+  auto_refunded: {
+    label: "Auto-Refunded",
+    className: "bg-green-50 text-green-700",
   },
-  partially_refunded: {
-    label: "Partial Refund",
+  escalated: {
+    label: "Escalated",
+    className: "bg-orange-50 text-orange-700",
+  },
+  manually_resolved: {
+    label: "Resolved",
+    className: "bg-emerald-50 text-emerald-700",
+  },
+  dismissed: {
+    label: "Dismissed",
     className: "bg-gray-100 text-gray-600",
   },
-  disputed: {
-    label: "Disputed",
-    className: "bg-orange-50 text-orange-700",
+  expired: {
+    label: "Expired",
+    className: "bg-red-50 text-red-700",
   },
 };
 
-export function StatusBadge({ status }: { status: PaymentStatus }) {
+export function StatusBadge({ status }: { status: AlertStatus }) {
   const config = statusConfig[status];
   return (
     <span

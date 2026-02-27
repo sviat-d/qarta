@@ -1,34 +1,34 @@
 const features = [
   {
-    metric: "+15%",
-    metricLabel: "approval rate",
-    title: "Smart Payment Routing",
+    metric: "-70%",
+    metricLabel: "dispute rate",
+    title: "Pre-Dispute Alert Interception",
     description:
-      "Automatic retry logic for soft declines with optimal timing. If one provider declines, Qarta routes to the next — before the customer even notices.",
+      "Qarta listens to Stripe Early Fraud Warnings and dispute events in real time. When a signal arrives, we act before it becomes a recorded chargeback on your account.",
     gradient: "from-blue-500 to-indigo-600",
   },
   {
-    metric: "-70%",
-    metricLabel: "chargebacks",
-    title: "Chargeback Prevention",
+    metric: "Auto",
+    metricLabel: "refund policies",
+    title: "Rule-Based Auto-Refund Engine",
     description:
-      "Real-time fraud signals, automated dispute responses, and proactive alerts. Stay well below Stripe's monitoring threshold.",
+      "Set your rules: auto-refund if amount < $100 and reason is fraud. Set safety caps per day and per customer. Qarta executes refunds via Stripe Refunds API — no manual work.",
     gradient: "from-indigo-500 to-purple-600",
   },
   {
-    metric: "99.9%",
-    metricLabel: "uptime",
-    title: "Multi-PSP Fallback",
+    metric: "0.3%",
+    metricLabel: "safe dispute rate",
+    title: "Dispute Ratio Protection",
     description:
-      "Stripe goes down? Charges still process through alternative providers. No single point of failure, no lost revenue during outages.",
+      "Stay well below Stripe's 0.75% monitoring threshold. Qarta tracks your dispute ratio trend and shows exactly how many chargebacks were prevented and fees saved.",
     gradient: "from-purple-500 to-pink-600",
   },
   {
-    metric: "USDT/C",
-    metricLabel: "stablecoins",
-    title: "Crypto Payment Rails",
+    metric: "24/7",
+    metricLabel: "on autopilot",
+    title: "Outcomes Dashboard",
     description:
-      "Accept USDT, USDC, and other stablecoins alongside traditional cards. Same API, same dashboard — new revenue stream for international customers.",
+      "See what matters: disputes avoided, fees saved, dispute ratio trend, automation rate. No noise — just clear proof of revenue protected. Export for your CFO.",
     gradient: "from-emerald-500 to-teal-600",
   },
 ];
@@ -42,11 +42,11 @@ export function Solution() {
             The Solution
           </p>
           <h2 className="mt-3 text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
-            One integration. Full payment optimization.
+            Chargeback deflection on autopilot
           </h2>
           <p className="mx-auto mt-4 max-w-2xl text-lg text-gray-600">
-            Qarta sits between your app and payment providers, optimizing every
-            transaction automatically. You keep using Stripe — we make it better.
+            Connect Stripe. Set your policies. Qarta handles the rest — intercepting
+            pre-dispute signals and auto-refunding before chargebacks hit your account.
           </p>
         </div>
 

@@ -4,7 +4,9 @@ import helmet from "@fastify/helmet";
 import rateLimit from "@fastify/rate-limit";
 import { config } from "./config.js";
 import { healthRoutes } from "./routes/health.js";
-import { paymentRoutes } from "./routes/payments.js";
+import { alertRoutes } from "./routes/payments.js";
+import { policyRoutes } from "./routes/policies.js";
+import { outcomesRoutes } from "./routes/outcomes.js";
 import { webhookRoutes } from "./routes/webhooks.js";
 
 async function buildServer() {
@@ -32,7 +34,9 @@ async function buildServer() {
 
   // Routes
   await app.register(healthRoutes, { prefix: "/" });
-  await app.register(paymentRoutes, { prefix: "/v1/payments" });
+  await app.register(alertRoutes, { prefix: "/v1/alerts" });
+  await app.register(policyRoutes, { prefix: "/v1/policies" });
+  await app.register(outcomesRoutes, { prefix: "/v1/outcomes" });
   await app.register(webhookRoutes, { prefix: "/v1/webhooks" });
 
   return app;
