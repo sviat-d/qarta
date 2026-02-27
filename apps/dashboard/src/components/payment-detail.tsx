@@ -1,11 +1,14 @@
 "use client";
 
-import type { MockAlert } from "@/lib/mock-data";
+import { useState } from "react";
+import type { Alert } from "@qarta/shared";
+import { resolveAlert } from "@/lib/api";
 import { StatusBadge } from "./status-badge";
 
 interface AlertDetailProps {
-  alert: MockAlert;
+  alert: Alert;
   onClose: () => void;
+  onResolve?: () => void;
 }
 
 const sourceLabels: Record<string, string> = {
@@ -15,7 +18,21 @@ const sourceLabels: Record<string, string> = {
   manual: "Manual",
 };
 
-export function AlertDetail({ alert, onClose }: AlertDetailProps) {
+export function AlertDetail({ alert, onClose, onResolve }: AlertDetailProps) {
+  const [resolving, setResolving] = useState(false);
+
+  const handleResolve = async (action: "refund" | "dismiss") => {
+    setResolving(true);
+    try {
+      await resolveAlert(alert.id, { action });
+      onResolve?.();
+    } catch (err) {
+      alert && console.error("Failed to resolve alert:", err);
+    } finally {
+      setResolving(false);
+    }
+  };
+
   return (
     <>
       {/* Backdrop */}
@@ -56,12 +73,10 @@ export function AlertDetail({ alert, onClose }: AlertDetailProps) {
 
         {/* Content */}
         <div className="p-6">
-          {/* Status */}
           <div className="mb-6">
             <StatusBadge status={alert.status} />
           </div>
 
-          {/* Details grid */}
           <div className="space-y-4">
             <DetailRow label="Alert ID" value={alert.id} mono />
             <DetailRow
@@ -80,17 +95,25 @@ export function AlertDetail({ alert, onClose }: AlertDetailProps) {
               label="Actionable"
               value={alert.isActionable ? "Yes" : "No"}
             />
-            <DetailRow label="Customer" value={alert.customerEmail} />
-            <DetailRow label="Customer ID" value={alert.customerId} mono />
-            <DetailRow
-              label="Card"
-              value={`${alert.cardBrand.toUpperCase()} ****${alert.cardLast4}`}
-            />
-            <DetailRow
-              label="Stripe Charge"
-              value={alert.stripeChargeId}
-              mono
-            />
+            {alert.customerEmail && (
+              <DetailRow label="Customer" value={alert.customerEmail} />
+            )}
+            {alert.customerId && (
+              <DetailRow label="Customer ID" value={alert.customerId} mono />
+            )}
+            {alert.cardBrand && alert.cardLast4 && (
+              <DetailRow
+                label="Card"
+                value={`${alert.cardBrand.toUpperCase()} ****${alert.cardLast4}`}
+              />
+            )}
+            {alert.stripeChargeId && (
+              <DetailRow
+                label="Stripe Charge"
+                value={alert.stripeChargeId}
+                mono
+              />
+            )}
             <DetailRow
               label="Created"
               value={new Date(alert.createdAt).toLocaleString("en-US", {
@@ -125,7 +148,7 @@ export function AlertDetail({ alert, onClose }: AlertDetailProps) {
             <div className="space-y-4">
               <TimelineItem
                 label="Alert received"
-                time={alert.createdAt}
+                time={String(alert.createdAt)}
                 status="completed"
               />
               {alert.status === "auto_refunded" && (
@@ -140,10 +163,11 @@ export function AlertDetail({ alert, onClose }: AlertDetailProps) {
                   <TimelineItem
                     label="Refund executed via Stripe"
                     time={
-                      alert.resolvedAt ??
-                      new Date(
-                        new Date(alert.createdAt).getTime() + 5000,
-                      ).toISOString()
+                      alert.resolvedAt
+                        ? String(alert.resolvedAt)
+                        : new Date(
+                            new Date(alert.createdAt).getTime() + 5000,
+                          ).toISOString()
                     }
                     status="completed"
                   />
@@ -170,10 +194,11 @@ export function AlertDetail({ alert, onClose }: AlertDetailProps) {
                   <TimelineItem
                     label="Manually resolved by operator"
                     time={
-                      alert.resolvedAt ??
-                      new Date(
-                        new Date(alert.createdAt).getTime() + 60000,
-                      ).toISOString()
+                      alert.resolvedAt
+                        ? String(alert.resolvedAt)
+                        : new Date(
+                            new Date(alert.createdAt).getTime() + 60000,
+                          ).toISOString()
                     }
                     status="completed"
                   />
@@ -183,10 +208,11 @@ export function AlertDetail({ alert, onClose }: AlertDetailProps) {
                 <TimelineItem
                   label="Alert dismissed"
                   time={
-                    alert.resolvedAt ??
-                    new Date(
-                      new Date(alert.createdAt).getTime() + 3000,
-                    ).toISOString()
+                    alert.resolvedAt
+                      ? String(alert.resolvedAt)
+                      : new Date(
+                          new Date(alert.createdAt).getTime() + 3000,
+                        ).toISOString()
                   }
                   status="completed"
                 />
@@ -204,10 +230,18 @@ export function AlertDetail({ alert, onClose }: AlertDetailProps) {
           {/* Actions */}
           {(alert.status === "new" || alert.status === "escalated") && (
             <div className="mt-8 flex gap-3">
-              <button className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">
-                Refund Now
+              <button
+                onClick={() => handleResolve("refund")}
+                disabled={resolving}
+                className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
+              >
+                {resolving ? "Processing..." : "Refund Now"}
               </button>
-              <button className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+              <button
+                onClick={() => handleResolve("dismiss")}
+                disabled={resolving}
+                className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+              >
                 Dismiss
               </button>
             </div>

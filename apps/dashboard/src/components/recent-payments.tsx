@@ -1,6 +1,9 @@
-import { mockAlerts } from "@/lib/mock-data";
-import { StatusBadge } from "./status-badge";
+"use client";
+
 import Link from "next/link";
+import { StatusBadge } from "./status-badge";
+import { fetchAlerts } from "@/lib/api";
+import { useApi } from "@/lib/use-api";
 
 const sourceLabels: Record<string, { label: string; color: string }> = {
   stripe_efw: { label: "EFW", color: "bg-purple-500" },
@@ -10,7 +13,12 @@ const sourceLabels: Record<string, { label: string; color: string }> = {
 };
 
 export function RecentAlerts() {
-  const recent = mockAlerts.slice(0, 8);
+  const { data, isLoading } = useApi(
+    () => fetchAlerts({ page: 1, perPage: 8 }),
+    [],
+  );
+
+  const recent = data?.data ?? [];
 
   return (
     <div className="rounded-xl border border-gray-200 bg-white">
@@ -27,64 +35,74 @@ export function RecentAlerts() {
         </Link>
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-gray-100 text-left text-xs font-medium text-gray-500">
-              <th className="px-6 py-3">Alert ID</th>
-              <th className="px-6 py-3">Customer</th>
-              <th className="px-6 py-3">Amount</th>
-              <th className="px-6 py-3">Source</th>
-              <th className="px-6 py-3">Reason</th>
-              <th className="px-6 py-3">Status</th>
-              <th className="px-6 py-3">Date</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-50">
-            {recent.map((alert) => {
-              const src = sourceLabels[alert.source] ?? {
-                label: alert.source,
-                color: "bg-gray-400",
-              };
-              return (
-                <tr key={alert.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-3">
-                    <span className="font-mono text-sm text-brand-600">
-                      {alert.id}
-                    </span>
-                  </td>
-                  <td className="px-6 py-3 text-sm text-gray-600">
-                    {alert.customerEmail}
-                  </td>
-                  <td className="px-6 py-3 text-sm font-medium text-gray-900">
-                    ${(alert.amount / 100).toFixed(2)}
-                  </td>
-                  <td className="px-6 py-3">
-                    <span className="inline-flex items-center gap-1.5 text-sm text-gray-600">
-                      <span
-                        className={`h-2 w-2 rounded-full ${src.color}`}
-                      />
-                      {src.label}
-                    </span>
-                  </td>
-                  <td className="px-6 py-3 text-sm text-gray-500 capitalize">
-                    {alert.reasonCategory.replace("_", " ")}
-                  </td>
-                  <td className="px-6 py-3">
-                    <StatusBadge status={alert.status} />
-                  </td>
-                  <td className="px-6 py-3 text-sm text-gray-500">
-                    {new Date(alert.createdAt).toLocaleDateString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+        {isLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="h-6 w-6 animate-spin rounded-full border-2 border-brand-600 border-t-transparent" />
+          </div>
+        ) : recent.length === 0 ? (
+          <div className="flex items-center justify-center py-12">
+            <p className="text-sm text-gray-400">No alerts yet. Waiting for Stripe webhooks.</p>
+          </div>
+        ) : (
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-gray-100 text-left text-xs font-medium text-gray-500">
+                <th className="px-6 py-3">Alert ID</th>
+                <th className="px-6 py-3">Customer</th>
+                <th className="px-6 py-3">Amount</th>
+                <th className="px-6 py-3">Source</th>
+                <th className="px-6 py-3">Reason</th>
+                <th className="px-6 py-3">Status</th>
+                <th className="px-6 py-3">Date</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {recent.map((alert) => {
+                const src = sourceLabels[alert.source] ?? {
+                  label: alert.source,
+                  color: "bg-gray-400",
+                };
+                return (
+                  <tr key={alert.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-3">
+                      <span className="font-mono text-sm text-brand-600">
+                        {alert.id}
+                      </span>
+                    </td>
+                    <td className="px-6 py-3 text-sm text-gray-600">
+                      {alert.customerEmail ?? "—"}
+                    </td>
+                    <td className="px-6 py-3 text-sm font-medium text-gray-900">
+                      ${(alert.amount / 100).toFixed(2)}
+                    </td>
+                    <td className="px-6 py-3">
+                      <span className="inline-flex items-center gap-1.5 text-sm text-gray-600">
+                        <span
+                          className={`h-2 w-2 rounded-full ${src.color}`}
+                        />
+                        {src.label}
+                      </span>
+                    </td>
+                    <td className="px-6 py-3 text-sm text-gray-500 capitalize">
+                      {alert.reasonCategory.replace("_", " ")}
+                    </td>
+                    <td className="px-6 py-3">
+                      <StatusBadge status={alert.status} />
+                    </td>
+                    <td className="px-6 py-3 text-sm text-gray-500">
+                      {new Date(alert.createdAt).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   );

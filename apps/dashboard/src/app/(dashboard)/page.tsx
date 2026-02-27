@@ -1,10 +1,17 @@
+"use client";
+
 import { TopBar } from "@/components/top-bar";
 import { MetricCard } from "@/components/metric-card";
 import { AlertChart } from "@/components/revenue-chart";
 import { RecentAlerts } from "@/components/recent-payments";
-import { mockOutcomes } from "@/lib/mock-data";
+import { fetchOutcomes } from "@/lib/api";
+import { useApi } from "@/lib/use-api";
 
 export default function OverviewPage() {
+  const { data, isLoading } = useApi(() => fetchOutcomes(), []);
+
+  const metrics = data?.data;
+
   return (
     <>
       <TopBar title="Overview" />
@@ -13,26 +20,26 @@ export default function OverviewPage() {
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
           <MetricCard
             title="Disputes Avoided"
-            value={mockOutcomes.disputesAvoided.toString()}
-            change={12}
+            value={isLoading ? "..." : (metrics?.disputesAvoided ?? 0).toString()}
+            change={metrics ? 12 : undefined}
             subtitle="this month"
           />
           <MetricCard
             title="Dispute Rate"
-            value={`${mockOutcomes.disputeRateCurrent}%`}
-            change={-55}
-            subtitle={`was ${mockOutcomes.disputeRatePrevious}%`}
+            value={isLoading ? "..." : `${metrics?.disputeRateCurrent ?? 0}%`}
+            change={metrics?.disputeRatePrevious ? Math.round(((metrics.disputeRateCurrent - metrics.disputeRatePrevious) / metrics.disputeRatePrevious) * 100) : undefined}
+            subtitle={metrics?.disputeRatePrevious ? `was ${metrics.disputeRatePrevious}%` : undefined}
           />
           <MetricCard
             title="Fees Saved"
-            value={`$${(mockOutcomes.feesAvoided / 100).toLocaleString()}`}
-            change={18}
+            value={isLoading ? "..." : `$${((metrics?.feesAvoided ?? 0) / 100).toLocaleString()}`}
+            change={metrics ? 18 : undefined}
             subtitle="this month"
           />
           <MetricCard
             title="Automation Rate"
-            value={`${mockOutcomes.automationRate}%`}
-            change={5.2}
+            value={isLoading ? "..." : `${metrics?.automationRate ?? 0}%`}
+            change={metrics ? 5.2 : undefined}
             subtitle="auto-resolved"
           />
         </div>
@@ -50,27 +57,21 @@ export default function OverviewPage() {
             <div className="mt-6 space-y-4">
               <BreakdownRow
                 label="Auto-Refunded"
-                count={mockOutcomes.alertsAutoResolved}
-                total={mockOutcomes.alertsTotal}
+                count={metrics?.alertsAutoResolved ?? 0}
+                total={metrics?.alertsTotal ?? 1}
                 color="bg-green-500"
               />
               <BreakdownRow
                 label="Escalated"
-                count={mockOutcomes.alertsEscalated}
-                total={mockOutcomes.alertsTotal}
+                count={metrics?.alertsEscalated ?? 0}
+                total={metrics?.alertsTotal ?? 1}
                 color="bg-orange-500"
               />
               <BreakdownRow
                 label="Dismissed"
-                count={mockOutcomes.alertsDismissed}
-                total={mockOutcomes.alertsTotal}
+                count={metrics?.alertsDismissed ?? 0}
+                total={metrics?.alertsTotal ?? 1}
                 color="bg-gray-400"
-              />
-              <BreakdownRow
-                label="Pending"
-                count={mockOutcomes.alertsNew}
-                total={mockOutcomes.alertsTotal}
-                color="bg-blue-500"
               />
             </div>
 
@@ -84,12 +85,12 @@ export default function OverviewPage() {
                 <div
                   className="h-full rounded-full bg-green-500"
                   style={{
-                    width: `${(mockOutcomes.disputeRateCurrent / 0.75) * 100}%`,
+                    width: `${((metrics?.disputeRateCurrent ?? 0) / 0.75) * 100}%`,
                   }}
                 />
               </div>
               <p className="mt-1 text-xs text-gray-400">
-                You&apos;re at {mockOutcomes.disputeRateCurrent}% — well below
+                You&apos;re at {metrics?.disputeRateCurrent ?? 0}% — well below
                 monitoring
               </p>
             </div>
