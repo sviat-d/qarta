@@ -37,14 +37,14 @@ export default function DashboardLayout({
       <Sidebar />
       <main className="ml-64">
         {isDemo && (
-          <div className="flex items-center justify-between border-b border-amber-200 bg-amber-50 px-8 py-2.5">
-            <p className="text-sm text-amber-800">
+          <div className="flex items-center justify-between border-b border-brand-200 bg-brand-50 px-8 py-2.5">
+            <p className="text-sm text-brand-800">
               You&apos;re in demo mode. Connect your Stripe account to start
               preventing chargebacks.
             </p>
             <Link
               href="/settings"
-              className="whitespace-nowrap rounded-md bg-amber-600 px-3 py-1 text-xs font-medium text-white hover:bg-amber-700"
+              className="whitespace-nowrap rounded-md bg-brand-600 px-3 py-1 text-xs font-medium text-white hover:bg-brand-700"
             >
               Connect Stripe
             </Link>

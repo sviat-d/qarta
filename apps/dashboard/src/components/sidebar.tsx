@@ -49,27 +49,27 @@ export function Sidebar() {
   const { isDemo, logout } = useAuth();
 
   return (
-    <aside className="fixed left-0 top-0 z-40 flex h-screen w-64 flex-col border-r border-gray-200 bg-white">
-      {/* Business name */}
-      <div className="flex h-16 items-center gap-3 border-b border-gray-200 px-5">
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-600">
+    <aside className="fixed left-0 top-0 z-40 flex h-screen w-64 flex-col bg-sidebar-bg">
+      {/* Logo */}
+      <div className="flex h-16 items-center gap-3 border-b border-sidebar-border px-5">
+        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-500">
           <span className="text-sm font-bold text-white">Q</span>
         </div>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold text-gray-900">Acme SaaS</p>
-          <p className="truncate text-xs text-gray-500">Free Plan</p>
+          <p className="truncate text-sm font-semibold text-white">Acme SaaS</p>
+          <p className="truncate text-xs text-gray-400">Free Plan</p>
         </div>
       </div>
 
       {isDemo && (
-        <div className="mx-4 mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-center text-xs font-medium text-amber-700">
+        <div className="mx-4 mt-3 rounded-lg border border-brand-500/30 bg-brand-500/10 px-3 py-2 text-center text-xs font-medium text-brand-300">
           Demo Mode
         </div>
       )}
 
       {/* Navigation */}
       <nav className="flex-1 space-y-1 px-3 py-4">
-        <p className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+        <p className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-wider text-gray-500">
           Menu
         </p>
         {navItems.map((item) => {
@@ -84,11 +84,11 @@ export function Sidebar() {
               href={item.href}
               className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
                 isActive
-                  ? "bg-brand-50 text-brand-700"
-                  : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                  ? "bg-sidebar-active text-white"
+                  : "text-gray-400 hover:bg-sidebar-hover hover:text-gray-200"
               }`}
             >
-              <span className={isActive ? "text-brand-600" : "text-gray-400"}>
+              <span className={isActive ? "text-brand-400" : "text-gray-500"}>
                 {item.icon}
               </span>
               {item.label}
@@ -98,10 +98,10 @@ export function Sidebar() {
       </nav>
 
       {/* Support links */}
-      <div className="space-y-1 border-t border-gray-200 px-3 py-3">
+      <div className="space-y-1 border-t border-sidebar-border px-3 py-3">
         <a
           href="mailto:support@qarta.eu"
-          className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-gray-500 hover:bg-gray-50 hover:text-gray-700"
+          className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-gray-500 hover:bg-sidebar-hover hover:text-gray-300"
         >
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 5.25h.008v.008H12v-.008Z" />
@@ -112,7 +112,7 @@ export function Sidebar() {
           href="https://qarta.eu"
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-gray-500 hover:bg-gray-50 hover:text-gray-700"
+          className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-gray-500 hover:bg-sidebar-hover hover:text-gray-300"
         >
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25" />
@@ -122,18 +122,18 @@ export function Sidebar() {
       </div>
 
       {/* User profile */}
-      <div className="border-t border-gray-200 p-4">
+      <div className="border-t border-sidebar-border p-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-100 text-sm font-medium text-brand-700">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-500/20 text-sm font-medium text-brand-300">
             A
           </div>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium text-gray-900">Acme SaaS</p>
+            <p className="truncate text-sm font-medium text-gray-200">Acme SaaS</p>
             <p className="truncate text-xs text-gray-500">acme@company.com</p>
           </div>
           <button
             onClick={logout}
-            className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+            className="rounded-lg p-1.5 text-gray-500 hover:bg-sidebar-hover hover:text-gray-300"
             title="Sign out"
           >
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">

@@ -45,11 +45,11 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50">
+    <div className="flex min-h-screen items-center justify-center bg-[#f5f6fa]">
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="mb-8 text-center">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-brand-600">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-brand-500">
             <span className="text-xl font-bold text-white">Q</span>
           </div>
           <h1 className="mt-4 text-2xl font-semibold text-gray-900">
