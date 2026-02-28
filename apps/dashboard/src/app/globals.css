@@ -4,29 +4,33 @@
 
 @layer base {
   :root {
-    --color-brand-50: #eef2ff;
-    --color-brand-100: #e0e7ff;
-    --color-brand-200: #c7d2fe;
-    --color-brand-300: #a5b4fc;
-    --color-brand-400: #818cf8;
-    --color-brand-500: #6366f1;
-    --color-brand-600: #4f46e5;
-    --color-brand-700: #4338ca;
-    --color-brand-800: #3730a3;
-    --color-brand-900: #312e81;
+    /* Brand — vibrant indigo/violet, closer to Chargeflow style */
+    --color-brand-50: #f0f0ff;
+    --color-brand-100: #e0e0ff;
+    --color-brand-200: #c6c4ff;
+    --color-brand-300: #a5a0ff;
+    --color-brand-400: #8678ff;
+    --color-brand-500: #6c55fa;
+    --color-brand-600: #5b3ef0;
+    --color-brand-700: #4d30dc;
+    --color-brand-800: #3f28b8;
+    --color-brand-900: #352496;
 
-    --color-background: #f8fafc;
-    --color-foreground: #0f172a;
-    --color-muted: #64748b;
+    /* Surfaces */
+    --color-background: #f5f6fa;
+    --color-foreground: #1a1d2e;
+    --color-muted: #6b7194;
     --color-card: #ffffff;
-    --color-border: #e2e8f0;
+    --color-border: #e4e7f0;
 
-    --color-sidebar-bg: #ffffff;
-    --color-sidebar-hover: #f8fafc;
-    --color-sidebar-active: #eef2ff;
-    --color-sidebar-border: #e2e8f0;
+    /* Sidebar — dark navy matching Chargeback.io screenshots */
+    --color-sidebar-bg: #0f1225;
+    --color-sidebar-hover: #1a1e36;
+    --color-sidebar-active: #252a45;
+    --color-sidebar-border: #1e2340;
 
-    --color-success: #10b981;
+    /* Status */
+    --color-success: #22c55e;
     --color-warning: #f59e0b;
     --color-danger: #ef4444;
   }

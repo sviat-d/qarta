@@ -84,7 +84,7 @@ function AlertActivityChart({
   }
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-6">
+    <div className="rounded-xl border border-gray-200/80 bg-white p-6 shadow-sm">
       <div className="mb-5 flex items-center justify-between">
         <div>
           <h3 className="text-sm font-semibold text-gray-900">Alerts Overview</h3>
@@ -234,7 +234,7 @@ function KpiCard({
   iconBg: string;
 }) {
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-5">
+    <div className="rounded-xl border border-gray-200/80 bg-white p-5 shadow-sm">
       <div className="flex items-center justify-between">
         <p className="text-sm font-medium text-gray-500">{title}</p>
         <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${iconBg}`}>
@@ -342,7 +342,7 @@ export default function OverviewPage() {
           <AlertActivityChart data={chartData} isLoading={loadingChart} />
         </div>
         {/* Alerts by Source */}
-        <div className="rounded-xl border border-gray-200 bg-white p-6">
+        <div className="rounded-xl border border-gray-200/80 bg-white p-6 shadow-sm">
           <h3 className="text-sm font-semibold text-gray-900">Alerts by Source</h3>
           <p className="text-xs text-gray-500">Distribution by alert origin</p>
           {loadingOutcomes ? (
@@ -386,7 +386,7 @@ export default function OverviewPage() {
       {/* Breakdown row */}
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Alerts by Outcome */}
-        <div className="rounded-xl border border-gray-200 bg-white p-6">
+        <div className="rounded-xl border border-gray-200/80 bg-white p-6 shadow-sm">
           <h3 className="text-sm font-semibold text-gray-900">Alerts by Outcome</h3>
           <p className="mb-4 text-xs text-gray-500">How alerts were resolved</p>
           <div className="space-y-3">
@@ -437,7 +437,7 @@ export default function OverviewPage() {
         </div>
 
         {/* Alerts by Reason */}
-        <div className="rounded-xl border border-gray-200 bg-white p-6">
+        <div className="rounded-xl border border-gray-200/80 bg-white p-6 shadow-sm">
           <h3 className="text-sm font-semibold text-gray-900">Alerts by Reason</h3>
           <p className="mb-4 text-xs text-gray-500">Top dispute reason categories</p>
           <div className="space-y-3">
@@ -466,7 +466,7 @@ export default function OverviewPage() {
       </div>
 
       {/* Recent Alerts */}
-      <div className="mt-6 rounded-xl border border-gray-200 bg-white">
+      <div className="mt-6 rounded-xl border border-gray-200/80 bg-white shadow-sm">
         <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
           <div>
             <h3 className="text-sm font-semibold text-gray-900">Recent Alerts</h3>

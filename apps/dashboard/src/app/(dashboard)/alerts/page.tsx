@@ -168,7 +168,7 @@ export default function AlertsPage() {
         </div>
 
         {/* Table */}
-        <div className="rounded-xl border border-gray-200 bg-white">
+        <div className="rounded-xl border border-gray-200/80 bg-white shadow-sm">
           <div className="overflow-x-auto">
             {isLoading ? (
               <div className="flex items-center justify-center py-16">
