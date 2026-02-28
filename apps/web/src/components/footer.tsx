@@ -35,6 +35,11 @@ export function Footer() {
                 </a>
               </li>
               <li>
+                <a href="#pricing" className="hover:text-gray-700">
+                  Pricing
+                </a>
+              </li>
+              <li>
                 <a href="#faq" className="hover:text-gray-700">
                   FAQ
                 </a>

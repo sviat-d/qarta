@@ -224,6 +224,28 @@ export const auditLog = pgTable(
   ],
 );
 
+export const notificationSettings = pgTable(
+  "notification_settings",
+  {
+    id: text("id").primaryKey(),
+    merchantId: text("merchant_id")
+      .references(() => merchants.id)
+      .notNull()
+      .unique(),
+    slackWebhookUrl: text("slack_webhook_url"),
+    slackEnabled: boolean("slack_enabled").default(false).notNull(),
+    emailAddress: text("email_address"),
+    emailEnabled: boolean("email_enabled").default(false).notNull(),
+    notifyNewAlert: boolean("notify_new_alert").default(true).notNull(),
+    notifyAutoRefund: boolean("notify_auto_refund").default(true).notNull(),
+    notifyEscalated: boolean("notify_escalated").default(true).notNull(),
+    notifyDailySummary: boolean("notify_daily_summary").default(true).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [index("notif_merchant_idx").on(table.merchantId)],
+);
+
 export const webhookEvents = pgTable(
   "webhook_events",
   {

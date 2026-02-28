@@ -4,6 +4,7 @@ import { Problems } from "@/components/problems";
 import { Solution } from "@/components/solution";
 import { Calculator } from "@/components/calculator";
 import { HowItWorks } from "@/components/how-it-works";
+import { Pricing } from "@/components/pricing";
 import { FAQ } from "@/components/faq";
 import { CTA } from "@/components/cta";
 import { Footer } from "@/components/footer";
@@ -17,6 +18,7 @@ export default function Home() {
       <Solution />
       <Calculator />
       <HowItWorks />
+      <Pricing />
       <FAQ />
       <CTA />
       <Footer />

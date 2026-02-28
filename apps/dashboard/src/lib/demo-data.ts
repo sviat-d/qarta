@@ -224,5 +224,20 @@ export function getDemoResponse(path: string): unknown {
     };
   }
 
+  if (path === "/v1/notifications") {
+    return {
+      data: {
+        slackWebhookUrl: null,
+        slackEnabled: false,
+        emailAddress: "demo@acme-saas.com",
+        emailEnabled: true,
+        notifyNewAlert: true,
+        notifyAutoRefund: true,
+        notifyEscalated: true,
+        notifyDailySummary: true,
+      },
+    };
+  }
+
   return { data: null };
 }
