@@ -21,10 +21,10 @@
     --color-card: #ffffff;
     --color-border: #e2e8f0;
 
-    --color-sidebar-bg: #0f172a;
-    --color-sidebar-hover: #1e293b;
-    --color-sidebar-active: #1e293b;
-    --color-sidebar-border: #1e293b;
+    --color-sidebar-bg: #ffffff;
+    --color-sidebar-hover: #f8fafc;
+    --color-sidebar-active: #eef2ff;
+    --color-sidebar-border: #e2e8f0;
 
     --color-success: #10b981;
     --color-warning: #f59e0b;

@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Sidebar } from "@/components/sidebar";
 import { useAuth } from "@/lib/auth-context";
 
@@ -10,7 +11,7 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, isDemo } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
@@ -32,9 +33,25 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-gray-50">
       <Sidebar />
-      <main className="ml-64">{children}</main>
+      <main className="ml-64">
+        {isDemo && (
+          <div className="flex items-center justify-between border-b border-amber-200 bg-amber-50 px-8 py-2.5">
+            <p className="text-sm text-amber-800">
+              You&apos;re in demo mode. Connect your Stripe account to start
+              preventing chargebacks.
+            </p>
+            <Link
+              href="/settings"
+              className="whitespace-nowrap rounded-md bg-amber-600 px-3 py-1 text-xs font-medium text-white hover:bg-amber-700"
+            >
+              Connect Stripe
+            </Link>
+          </div>
+        )}
+        {children}
+      </main>
     </div>
   );
 }
