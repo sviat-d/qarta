@@ -7,6 +7,7 @@ import type {
   OutcomesMetrics,
   OutcomesTimeSeries,
 } from "@qarta/shared";
+import { isDemoMode, getDemoResponse } from "./demo-data";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -39,6 +40,11 @@ async function apiFetch<T>(
   path: string,
   options?: RequestInit & { params?: Record<string, string | number | undefined> },
 ): Promise<T> {
+  if (isDemoMode()) {
+    await new Promise((r) => setTimeout(r, 300));
+    return getDemoResponse(path) as T;
+  }
+
   const apiKey = getApiKey();
   if (!apiKey) {
     throw new ApiError("UNAUTHORIZED", "Not authenticated");

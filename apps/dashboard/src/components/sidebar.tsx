@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useAuth } from "@/lib/auth-context";
 
 const navItems = [
   {
@@ -45,6 +46,7 @@ const navItems = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { isDemo } = useAuth();
 
   return (
     <aside className="fixed left-0 top-0 z-40 flex h-screen w-64 flex-col bg-sidebar-bg text-white">
@@ -55,6 +57,12 @@ export function Sidebar() {
         </div>
         <span className="text-lg font-semibold">Qarta</span>
       </div>
+
+      {isDemo && (
+        <div className="mx-3 mt-3 rounded-lg bg-yellow-500/10 px-3 py-2 text-center text-xs font-medium text-yellow-300">
+          Demo Mode
+        </div>
+      )}
 
       {/* Navigation */}
       <nav className="flex-1 space-y-1 px-3 py-4">
