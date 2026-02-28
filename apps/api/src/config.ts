@@ -20,6 +20,9 @@ const envSchema = z.object({
   STRIPE_CLIENT_ID: z.string().optional(), // for OAuth Connect
 
   API_KEY_SALT: z.string().default("dev-salt-change-in-production"),
+
+  // Comma-separated list of allowed CORS origins
+  CORS_ORIGINS: z.string().default("https://qarta.eu"),
 });
 
 export type Env = z.infer<typeof envSchema>;
