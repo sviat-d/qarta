@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
+import { fetchMe } from "@/lib/api";
+import { useApi } from "@/lib/use-api";
 
 const navItems = [
   {
@@ -47,6 +49,12 @@ const navItems = [
 export function Sidebar() {
   const pathname = usePathname();
   const { isDemo, logout } = useAuth();
+  const { data: meData } = useApi(() => fetchMe(), []);
+
+  const merchant = meData?.data;
+  const name = merchant?.name ?? "My Company";
+  const email = merchant?.email ?? "";
+  const initial = name.charAt(0).toUpperCase();
 
   return (
     <aside className="fixed left-0 top-0 z-40 flex h-screen w-64 flex-col bg-sidebar-bg">
@@ -56,7 +64,7 @@ export function Sidebar() {
           <span className="text-sm font-bold text-white">Q</span>
         </div>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold text-white">Acme SaaS</p>
+          <p className="truncate text-sm font-semibold text-white">{name}</p>
           <p className="truncate text-xs text-gray-400">Free Plan</p>
         </div>
       </div>
@@ -125,11 +133,11 @@ export function Sidebar() {
       <div className="border-t border-sidebar-border p-4">
         <div className="flex items-center gap-3">
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-500/20 text-sm font-medium text-brand-300">
-            A
+            {initial}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium text-gray-200">Acme SaaS</p>
-            <p className="truncate text-xs text-gray-500">acme@company.com</p>
+            <p className="truncate text-sm font-medium text-gray-200">{name}</p>
+            <p className="truncate text-xs text-gray-500">{email}</p>
           </div>
           <button
             onClick={logout}

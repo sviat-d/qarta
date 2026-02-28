@@ -1,5 +1,3 @@
-import { WaitlistForm } from "./waitlist-form";
-
 const DASHBOARD_URL = process.env.NEXT_PUBLIC_DASHBOARD_URL ?? "http://localhost:3001";
 
 const metrics = [
@@ -39,19 +37,27 @@ export function Hero() {
           up to a frozen Stripe account.
         </p>
 
-        <div className="animate-fade-in-up-delay-3 mt-10" id="waitlist">
-          <WaitlistForm variant="dark" />
-          <p className="mt-4 text-sm text-slate-500">
-            or{" "}
-            <a
-              href={`${DASHBOARD_URL}/login`}
-              className="font-medium text-brand-400 underline decoration-brand-400/30 underline-offset-4 transition-colors hover:text-brand-300"
-            >
-              try the live demo
-            </a>
-            {" "}— no sign-up required
-          </p>
+        <div className="animate-fade-in-up-delay-3 mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
+          <a
+            href={`${DASHBOARD_URL}/login`}
+            className="inline-flex items-center gap-2 rounded-lg bg-brand-600 px-8 py-3.5 text-sm font-semibold text-white transition-all hover:bg-brand-500 hover:shadow-lg hover:shadow-brand-600/25"
+          >
+            Get Started
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
+            </svg>
+          </a>
+          <a
+            href={`${DASHBOARD_URL}/login`}
+            className="inline-flex items-center gap-2 rounded-lg border border-white/15 bg-white/5 px-8 py-3.5 text-sm font-semibold text-white transition-all hover:bg-white/10"
+          >
+            Try Live Demo
+          </a>
         </div>
+
+        <p className="animate-fade-in-up-delay-3 mt-4 text-sm text-slate-500">
+          Free plan available. 10 min setup. No code changes.
+        </p>
 
         <div className="animate-fade-in-up-delay-3 mt-12 flex flex-wrap items-center justify-center gap-8 border-t border-white/10 pt-8 sm:gap-12">
           {metrics.map((metric) => (

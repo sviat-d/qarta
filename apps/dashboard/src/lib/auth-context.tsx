@@ -8,6 +8,7 @@ import {
   useCallback,
   type ReactNode,
 } from "react";
+import { useRouter } from "next/navigation";
 import { getApiKey, setApiKey, clearApiKey } from "./api";
 import { isDemoMode, enableDemoMode, disableDemoMode } from "./demo-data";
 
@@ -30,6 +31,7 @@ const AuthContext = createContext<AuthContextValue>({
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const router = useRouter();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isDemo, setIsDemo] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -58,9 +60,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(() => {
     clearApiKey();
     disableDemoMode();
+    localStorage.removeItem("qarta_onboarding_complete");
     setIsDemo(false);
     setIsAuthenticated(false);
-  }, []);
+    router.push("/login");
+  }, [router]);
 
   return (
     <AuthContext.Provider value={{ isAuthenticated, isLoading, isDemo, login, loginDemo, logout }}>
