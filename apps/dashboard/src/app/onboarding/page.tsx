@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
+import { createPolicy } from "@/lib/api";
+import { isDemoMode } from "@/lib/demo-data";
 
 /* ─── Types ─── */
 
@@ -777,7 +779,38 @@ export default function OnboardingPage() {
     );
   };
 
-  const completeOnboarding = () => {
+  const [launching, setLaunching] = useState(false);
+
+  const completeOnboarding = async () => {
+    setLaunching(true);
+    try {
+      // Create the initial protection policy from onboarding config (skip for demo mode)
+      if (!isDemoMode()) {
+        await createPolicy({
+          name: protectionConfig.preset === "recommended"
+            ? "Auto-refund (recommended)"
+            : protectionConfig.preset === "conservative"
+            ? "Auto-refund (conservative)"
+            : "Auto-refund (custom)",
+          priority: 1,
+          conditions: [
+            { field: "amount", operator: "lte", value: protectionConfig.maxAmount },
+            { field: "source", operator: "in", value: ["stripe_efw", "stripe_dispute"] },
+          ],
+          action: { type: "auto_refund", cancelSubscription: false },
+          safetyRails: {
+            maxRefundsPerDay: protectionConfig.maxRefundsPerDay,
+            maxRefundsPerCustomer: protectionConfig.maxPerCustomer,
+            maxRefundAmount: protectionConfig.maxAmount,
+          },
+        });
+      }
+    } catch {
+      // Don't block onboarding if policy creation fails — they can create later
+    } finally {
+      setLaunching(false);
+    }
+
     if (typeof window !== "undefined") {
       localStorage.setItem("qarta_onboarding_complete", "true");
     }
@@ -880,7 +913,7 @@ export default function OnboardingPage() {
                   completeOnboarding();
                 }
               }}
-              disabled={!canContinue()}
+              disabled={!canContinue() || launching}
               className="inline-flex items-center gap-2 rounded-lg bg-brand-600 px-6 py-2.5 text-sm font-medium text-white transition-colors hover:bg-brand-700 disabled:opacity-50"
             >
               {step < 3 ? (
@@ -889,6 +922,11 @@ export default function OnboardingPage() {
                   <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
                   </svg>
+                </>
+              ) : launching ? (
+                <>
+                  Launching...
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
                 </>
               ) : (
                 <>
