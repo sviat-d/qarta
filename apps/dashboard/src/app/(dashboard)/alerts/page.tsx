@@ -19,15 +19,23 @@ const statusFilters: { label: string; value: AlertStatus | "all" }[] = [
   { label: "Dismissed", value: "dismissed" },
 ];
 
-const sourceLabels: Record<string, { label: string; color: string }> = {
-  stripe_efw: { label: "EFW", color: "bg-purple-500" },
-  stripe_dispute: { label: "Dispute", color: "bg-red-500" },
-  stripe_inquiry: { label: "Inquiry", color: "bg-yellow-500" },
-  manual: { label: "Manual", color: "bg-gray-400" },
+const sourceLabels: Record<string, { label: string; color: string; bg: string }> = {
+  stripe_efw: { label: "EFW", color: "text-purple-700", bg: "bg-purple-50 border-purple-200" },
+  stripe_dispute: { label: "Dispute", color: "text-red-700", bg: "bg-red-50 border-red-200" },
+  stripe_inquiry: { label: "Inquiry", color: "text-yellow-700", bg: "bg-yellow-50 border-yellow-200" },
+  manual: { label: "Manual", color: "text-gray-700", bg: "bg-gray-50 border-gray-200" },
+};
+
+const sourceDotColors: Record<string, string> = {
+  stripe_efw: "bg-purple-500",
+  stripe_dispute: "bg-red-500",
+  stripe_inquiry: "bg-yellow-500",
+  manual: "bg-gray-400",
 };
 
 export default function AlertsPage() {
   const [statusFilter, setStatusFilter] = useState<AlertStatus | "all">("all");
+  const [sourceFilter, setSourceFilter] = useState<string | "all">("all");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [selectedAlert, setSelectedAlert] = useState<Alert | null>(null);
@@ -47,6 +55,21 @@ export default function AlertsPage() {
   const total = data?.meta?.total ?? 0;
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
+  // Count by source from full data
+  const sourceCounts = alerts.reduce(
+    (acc, a) => {
+      acc[a.source] = (acc[a.source] ?? 0) + 1;
+      return acc;
+    },
+    {} as Record<string, number>,
+  );
+
+  // Apply source filter client-side
+  const filteredAlerts =
+    sourceFilter === "all"
+      ? alerts
+      : alerts.filter((a) => a.source === sourceFilter);
+
   const handleResolve = useCallback(() => {
     setSelectedAlert(null);
     refetch();
@@ -56,6 +79,42 @@ export default function AlertsPage() {
     <>
       <TopBar title="Alerts" />
       <div className="p-8">
+        {/* Source cards */}
+        <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <button
+            onClick={() => setSourceFilter("all")}
+            className={`rounded-xl border p-4 text-left transition-all ${
+              sourceFilter === "all"
+                ? "border-brand-600 bg-brand-50 ring-1 ring-brand-600/20"
+                : "border-gray-200 bg-white hover:border-gray-300"
+            }`}
+          >
+            <p className="text-xs font-medium text-gray-500">All Sources</p>
+            <p className="mt-1 text-2xl font-bold text-gray-900">{total}</p>
+          </button>
+          {(["stripe_efw", "stripe_dispute", "stripe_inquiry"] as const).map((source) => {
+            const info = sourceLabels[source]!;
+            const count = sourceCounts[source] ?? 0;
+            const isActive = sourceFilter === source;
+            return (
+              <button
+                key={source}
+                onClick={() => setSourceFilter(isActive ? "all" : source)}
+                className={`rounded-xl border p-4 text-left transition-all ${
+                  isActive
+                    ? `${info.bg} ring-1 ring-brand-600/20`
+                    : "border-gray-200 bg-white hover:border-gray-300"
+                }`}
+              >
+                <p className={`text-xs font-medium ${isActive ? info.color : "text-gray-500"}`}>
+                  {info.label}
+                </p>
+                <p className="mt-1 text-2xl font-bold text-gray-900">{count}</p>
+              </button>
+            );
+          })}
+        </div>
+
         {/* Filters */}
         <div className="mb-6 flex flex-wrap items-center gap-4">
           <div className="flex items-center gap-1 rounded-lg border border-gray-200 bg-white p-1">
@@ -104,7 +163,7 @@ export default function AlertsPage() {
           </div>
 
           <span className="ml-auto text-sm text-gray-500">
-            {total} alert{total !== 1 ? "s" : ""}
+            {filteredAlerts.length} alert{filteredAlerts.length !== 1 ? "s" : ""}
           </span>
         </div>
 
@@ -115,7 +174,7 @@ export default function AlertsPage() {
               <div className="flex items-center justify-center py-16">
                 <div className="h-6 w-6 animate-spin rounded-full border-2 border-brand-600 border-t-transparent" />
               </div>
-            ) : alerts.length === 0 ? (
+            ) : filteredAlerts.length === 0 ? (
               <div className="flex items-center justify-center py-16">
                 <p className="text-sm text-gray-400">No alerts found</p>
               </div>
@@ -123,21 +182,19 @@ export default function AlertsPage() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-gray-100 text-left text-xs font-medium text-gray-500">
-                    <th className="px-6 py-3">Alert ID</th>
+                    <th className="px-6 py-3">#</th>
+                    <th className="px-6 py-3">Status</th>
                     <th className="px-6 py-3">Customer</th>
                     <th className="px-6 py-3">Amount</th>
                     <th className="px-6 py-3">Source</th>
                     <th className="px-6 py-3">Reason</th>
-                    <th className="px-6 py-3">Status</th>
                     <th className="px-6 py-3">Date</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
-                  {alerts.map((alert) => {
-                    const src = sourceLabels[alert.source] ?? {
-                      label: alert.source,
-                      color: "bg-gray-400",
-                    };
+                  {filteredAlerts.map((alert) => {
+                    const dotColor = sourceDotColors[alert.source] ?? "bg-gray-400";
+                    const srcLabel = sourceLabels[alert.source]?.label ?? alert.source;
                     return (
                       <tr
                         key={alert.id}
@@ -149,36 +206,31 @@ export default function AlertsPage() {
                             {alert.id}
                           </span>
                         </td>
+                        <td className="px-6 py-3">
+                          <StatusBadge status={alert.status} />
+                        </td>
                         <td className="px-6 py-3 text-sm text-gray-600">
-                          {alert.customerEmail ?? "—"}
+                          {alert.customerEmail ?? "\u2014"}
                         </td>
                         <td className="px-6 py-3 text-sm font-medium text-gray-900">
                           ${(alert.amount / 100).toFixed(2)}
                         </td>
                         <td className="px-6 py-3">
                           <span className="inline-flex items-center gap-1.5 text-sm text-gray-600">
-                            <span
-                              className={`h-2 w-2 rounded-full ${src.color}`}
-                            />
-                            {src.label}
+                            <span className={`h-2 w-2 rounded-full ${dotColor}`} />
+                            {srcLabel}
                           </span>
                         </td>
-                        <td className="px-6 py-3 text-sm text-gray-500 capitalize">
+                        <td className="px-6 py-3 text-sm capitalize text-gray-500">
                           {alert.reasonCategory.replace("_", " ")}
                         </td>
-                        <td className="px-6 py-3">
-                          <StatusBadge status={alert.status} />
-                        </td>
                         <td className="px-6 py-3 text-sm text-gray-500">
-                          {new Date(alert.createdAt).toLocaleDateString(
-                            "en-US",
-                            {
-                              month: "short",
-                              day: "numeric",
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            },
-                          )}
+                          {new Date(alert.createdAt).toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
                         </td>
                       </tr>
                     );

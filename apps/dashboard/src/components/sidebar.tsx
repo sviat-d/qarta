@@ -6,7 +6,7 @@ import { useAuth } from "@/lib/auth-context";
 
 const navItems = [
   {
-    label: "Overview",
+    label: "Dashboard",
     href: "/",
     icon: (
       <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
@@ -46,26 +46,32 @@ const navItems = [
 
 export function Sidebar() {
   const pathname = usePathname();
-  const { isDemo } = useAuth();
+  const { isDemo, logout } = useAuth();
 
   return (
-    <aside className="fixed left-0 top-0 z-40 flex h-screen w-64 flex-col bg-sidebar-bg text-white">
-      {/* Logo */}
-      <div className="flex h-16 items-center gap-2 border-b border-sidebar-border px-6">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-600">
+    <aside className="fixed left-0 top-0 z-40 flex h-screen w-64 flex-col border-r border-gray-200 bg-white">
+      {/* Business name */}
+      <div className="flex h-16 items-center gap-3 border-b border-gray-200 px-5">
+        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-600">
           <span className="text-sm font-bold text-white">Q</span>
         </div>
-        <span className="text-lg font-semibold">Qarta</span>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-semibold text-gray-900">Acme SaaS</p>
+          <p className="truncate text-xs text-gray-500">Free Plan</p>
+        </div>
       </div>
 
       {isDemo && (
-        <div className="mx-3 mt-3 rounded-lg bg-yellow-500/10 px-3 py-2 text-center text-xs font-medium text-yellow-300">
+        <div className="mx-4 mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-center text-xs font-medium text-amber-700">
           Demo Mode
         </div>
       )}
 
       {/* Navigation */}
       <nav className="flex-1 space-y-1 px-3 py-4">
+        <p className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+          Menu
+        </p>
         {navItems.map((item) => {
           const isActive =
             item.href === "/"
@@ -78,27 +84,62 @@ export function Sidebar() {
               href={item.href}
               className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
                 isActive
-                  ? "bg-sidebar-active text-white"
-                  : "text-gray-400 hover:bg-sidebar-hover hover:text-white"
+                  ? "bg-brand-50 text-brand-700"
+                  : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
               }`}
             >
-              {item.icon}
+              <span className={isActive ? "text-brand-600" : "text-gray-400"}>
+                {item.icon}
+              </span>
               {item.label}
             </Link>
           );
         })}
       </nav>
 
-      {/* Bottom section */}
-      <div className="border-t border-sidebar-border p-4">
+      {/* Support links */}
+      <div className="space-y-1 border-t border-gray-200 px-3 py-3">
+        <a
+          href="mailto:support@qarta.eu"
+          className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-gray-500 hover:bg-gray-50 hover:text-gray-700"
+        >
+          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 5.25h.008v.008H12v-.008Z" />
+          </svg>
+          Support
+        </a>
+        <a
+          href="https://qarta.eu"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-gray-500 hover:bg-gray-50 hover:text-gray-700"
+        >
+          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25" />
+          </svg>
+          Help center
+        </a>
+      </div>
+
+      {/* User profile */}
+      <div className="border-t border-gray-200 p-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-600 text-sm font-medium">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-100 text-sm font-medium text-brand-700">
             A
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="truncate text-sm font-medium">Acme SaaS</p>
-            <p className="truncate text-xs text-gray-400">acme@company.com</p>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-medium text-gray-900">Acme SaaS</p>
+            <p className="truncate text-xs text-gray-500">acme@company.com</p>
           </div>
+          <button
+            onClick={logout}
+            className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+            title="Sign out"
+          >
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9" />
+            </svg>
+          </button>
         </div>
       </div>
     </aside>
