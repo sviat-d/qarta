@@ -4,16 +4,16 @@
 
 @layer base {
   :root {
-    --color-brand-50: #eef2ff;
-    --color-brand-100: #e0e7ff;
-    --color-brand-200: #c7d2fe;
-    --color-brand-300: #a5b4fc;
-    --color-brand-400: #818cf8;
-    --color-brand-500: #6366f1;
-    --color-brand-600: #4f46e5;
-    --color-brand-700: #4338ca;
-    --color-brand-800: #3730a3;
-    --color-brand-900: #312e81;
+    --color-brand-50: #f0f0ff;
+    --color-brand-100: #e0e0ff;
+    --color-brand-200: #c6c4ff;
+    --color-brand-300: #a5a0ff;
+    --color-brand-400: #8678ff;
+    --color-brand-500: #6c55fa;
+    --color-brand-600: #5b3ef0;
+    --color-brand-700: #4d30dc;
+    --color-brand-800: #3f28b8;
+    --color-brand-900: #352496;
 
     --color-background: #ffffff;
     --color-foreground: #0f172a;
@@ -32,7 +32,7 @@
 
 @layer utilities {
   .text-gradient {
-    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a78bfa 100%);
+    background: linear-gradient(135deg, #6c55fa 0%, #8b5cf6 50%, #a78bfa 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;

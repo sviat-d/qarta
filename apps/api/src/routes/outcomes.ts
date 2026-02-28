@@ -17,8 +17,14 @@ export async function outcomesRoutes(app: FastifyInstance) {
   app.get("/", async (request, reply) => {
     const merchant = request.merchant!;
 
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now);
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const sixtyDaysAgo = new Date(now);
+    sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+
     // Run all aggregation queries in parallel
-    const [alertStats, refundStats, avgResponseTime] = await Promise.all([
+    const [alertStats, refundStats, avgResponseTime, currentPeriod, previousPeriod] = await Promise.all([
       // Alert counts by status
       db
         .select({
@@ -58,6 +64,35 @@ export async function outcomesRoutes(app: FastifyInstance) {
             sql`${schema.alerts.resolvedAt} is not null`,
           ),
         ),
+
+      // Dispute rate: current 30 days (escalated / total)
+      db
+        .select({
+          total: sql<number>`count(*)::int`,
+          escalated: sql<number>`count(*) filter (where ${schema.alerts.status} = 'escalated')::int`,
+        })
+        .from(schema.alerts)
+        .where(
+          and(
+            eq(schema.alerts.merchantId, merchant.id),
+            gte(schema.alerts.createdAt, thirtyDaysAgo),
+          ),
+        ),
+
+      // Dispute rate: previous 30 days
+      db
+        .select({
+          total: sql<number>`count(*)::int`,
+          escalated: sql<number>`count(*) filter (where ${schema.alerts.status} = 'escalated')::int`,
+        })
+        .from(schema.alerts)
+        .where(
+          and(
+            eq(schema.alerts.merchantId, merchant.id),
+            gte(schema.alerts.createdAt, sixtyDaysAgo),
+            lte(schema.alerts.createdAt, thirtyDaysAgo),
+          ),
+        ),
     ]);
 
     // Calculate metrics from aggregated data
@@ -88,8 +123,12 @@ export async function outcomesRoutes(app: FastifyInstance) {
         alertsEscalated,
         alertsDismissed,
         disputesAvoided,
-        disputeRateCurrent: 0, // Would come from Stripe API in production
-        disputeRatePrevious: 0,
+        disputeRateCurrent: currentPeriod[0]?.total
+          ? Math.round((currentPeriod[0].escalated / currentPeriod[0].total) * 10000) / 100
+          : 0,
+        disputeRatePrevious: previousPeriod[0]?.total
+          ? Math.round((previousPeriod[0].escalated / previousPeriod[0].total) * 10000) / 100
+          : 0,
         totalRefunded,
         feesAvoided,
         automationRate,

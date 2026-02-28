@@ -199,3 +199,33 @@ export async function fetchStripeStatus(): Promise<
 export async function initiateStripeConnect(): Promise<ApiResponse<{ url: string; state: string }>> {
   return apiFetch("/v1/connect/stripe");
 }
+
+// ─── Notifications ───
+
+export interface NotificationSettings {
+  slackWebhookUrl: string | null;
+  slackEnabled: boolean;
+  emailAddress: string | null;
+  emailEnabled: boolean;
+  notifyNewAlert: boolean;
+  notifyAutoRefund: boolean;
+  notifyEscalated: boolean;
+  notifyDailySummary: boolean;
+}
+
+export async function fetchNotificationSettings(): Promise<ApiResponse<NotificationSettings>> {
+  return apiFetch("/v1/notifications");
+}
+
+export async function updateNotificationSettings(
+  body: Partial<NotificationSettings>,
+): Promise<ApiResponse<{ updated: boolean }>> {
+  return apiFetch("/v1/notifications", {
+    method: "PUT",
+    body: JSON.stringify(body),
+  });
+}
+
+export async function testSlackWebhook(): Promise<ApiResponse<{ sent: boolean }>> {
+  return apiFetch("/v1/notifications/test-slack", { method: "POST" });
+}

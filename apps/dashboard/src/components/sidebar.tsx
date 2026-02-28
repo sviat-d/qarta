@@ -1,8 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
+import { fetchMe } from "@/lib/api";
+import { useApi } from "@/lib/use-api";
 
 const navItems = [
   {
@@ -47,18 +50,35 @@ const navItems = [
 export function Sidebar() {
   const pathname = usePathname();
   const { isDemo, logout } = useAuth();
+  const { data: meData } = useApi(() => fetchMe(), []);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
-  return (
-    <aside className="fixed left-0 top-0 z-40 flex h-screen w-64 flex-col bg-sidebar-bg">
+  const merchant = meData?.data;
+  const name = merchant?.name ?? "My Company";
+  const email = merchant?.email ?? "";
+  const initial = name.charAt(0).toUpperCase();
+
+  const sidebarContent = (
+    <>
       {/* Logo */}
       <div className="flex h-16 items-center gap-3 border-b border-sidebar-border px-5">
         <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-500">
           <span className="text-sm font-bold text-white">Q</span>
         </div>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold text-white">Acme SaaS</p>
+          <p className="truncate text-sm font-semibold text-white">{name}</p>
           <p className="truncate text-xs text-gray-400">Free Plan</p>
         </div>
+        {/* Close button — mobile only */}
+        <button
+          onClick={() => setMobileOpen(false)}
+          className="rounded-lg p-1 text-gray-400 hover:text-white lg:hidden"
+          aria-label="Close menu"
+        >
+          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+          </svg>
+        </button>
       </div>
 
       {isDemo && (
@@ -82,6 +102,7 @@ export function Sidebar() {
             <Link
               key={item.href}
               href={item.href}
+              onClick={() => setMobileOpen(false)}
               className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
                 isActive
                   ? "bg-sidebar-active text-white"
@@ -125,11 +146,11 @@ export function Sidebar() {
       <div className="border-t border-sidebar-border p-4">
         <div className="flex items-center gap-3">
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-500/20 text-sm font-medium text-brand-300">
-            A
+            {initial}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium text-gray-200">Acme SaaS</p>
-            <p className="truncate text-xs text-gray-500">acme@company.com</p>
+            <p className="truncate text-sm font-medium text-gray-200">{name}</p>
+            <p className="truncate text-xs text-gray-500">{email}</p>
           </div>
           <button
             onClick={logout}
@@ -142,6 +163,47 @@ export function Sidebar() {
           </button>
         </div>
       </div>
-    </aside>
+    </>
+  );
+
+  return (
+    <>
+      {/* Mobile top bar with hamburger */}
+      <div className="fixed left-0 right-0 top-0 z-50 flex h-14 items-center gap-3 border-b border-gray-200 bg-white px-4 lg:hidden">
+        <button
+          onClick={() => setMobileOpen(true)}
+          className="rounded-lg p-2 text-gray-600 hover:bg-gray-100"
+          aria-label="Open menu"
+        >
+          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 9h16.5m-16.5 6.75h16.5" />
+          </svg>
+        </button>
+        <div className="flex items-center gap-2">
+          <div className="flex h-7 w-7 items-center justify-center rounded-md bg-brand-500">
+            <span className="text-xs font-bold text-white">Q</span>
+          </div>
+          <span className="text-sm font-semibold text-gray-900">Qarta</span>
+        </div>
+      </div>
+
+      {/* Desktop sidebar */}
+      <aside className="fixed left-0 top-0 z-40 hidden h-screen w-64 flex-col bg-sidebar-bg lg:flex">
+        {sidebarContent}
+      </aside>
+
+      {/* Mobile sidebar overlay */}
+      {mobileOpen && (
+        <>
+          <div
+            className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+            onClick={() => setMobileOpen(false)}
+          />
+          <aside className="fixed left-0 top-0 z-50 flex h-screen w-64 flex-col bg-sidebar-bg lg:hidden">
+            {sidebarContent}
+          </aside>
+        </>
+      )}
+    </>
   );
 }

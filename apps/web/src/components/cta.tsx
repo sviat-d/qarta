@@ -1,4 +1,4 @@
-import { WaitlistForm } from "./waitlist-form";
+const DASHBOARD_URL = process.env.NEXT_PUBLIC_DASHBOARD_URL ?? "http://localhost:3001";
 
 export function CTA() {
   return (
@@ -14,14 +14,28 @@ export function CTA() {
             Stop losing revenue to chargebacks
           </h2>
           <p className="mx-auto mt-4 max-w-xl text-lg text-slate-400">
-            Join the early access list. Protect your Stripe dispute ratio
-            and save money on every prevented chargeback.
+            Protect your Stripe dispute ratio and save money on every
+            prevented chargeback. Set up in 10 minutes.
           </p>
-          <div className="mt-8">
-            <WaitlistForm variant="dark" />
+          <div className="mt-8 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
+            <a
+              href={`${DASHBOARD_URL}/login`}
+              className="inline-flex items-center gap-2 rounded-lg bg-brand-600 px-8 py-3.5 text-sm font-semibold text-white transition-all hover:bg-brand-500 hover:shadow-lg hover:shadow-brand-600/25"
+            >
+              Get Started Free
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
+              </svg>
+            </a>
+            <a
+              href={`${DASHBOARD_URL}/login`}
+              className="inline-flex items-center gap-2 rounded-lg border border-white/15 bg-white/5 px-8 py-3.5 text-sm font-semibold text-white transition-all hover:bg-white/10"
+            >
+              Try Live Demo
+            </a>
           </div>
           <p className="mt-4 text-sm text-slate-600">
-            Free during early access. 10 min setup. No code changes.
+            Free plan available. No credit card required.
           </p>
         </div>
       </div>

@@ -13,6 +13,7 @@ import { evaluateAlert } from "../services/policy-engine.js";
 import { executeRefund } from "../services/refund-executor.js";
 import { db, schema } from "../db/index.js";
 import { config } from "../config.js";
+import { sendNotification } from "../services/notifier.js";
 
 export async function webhookRoutes(app: FastifyInstance) {
   // Register raw body parser for signature verification
@@ -246,6 +247,18 @@ async function processAlert(
 
   app.log.info({ alertId, source: parsed.source }, "Alert created");
 
+  // Notify: new alert
+  sendNotification({
+    type: "new_alert",
+    merchantId,
+    alertId,
+    amount: parsed.amount,
+    currency: parsed.currency,
+    source: parsed.source,
+    reasonCategory: parsed.reasonCategory,
+    customerEmail: chargeDetails?.customerEmail ?? undefined,
+  });
+
   // 2. Fetch merchant policies and evaluate
   const dbPolicies = await db.query.policies.findMany({
     where: eq(schema.policies.merchantId, merchantId),
@@ -314,6 +327,17 @@ async function processAlert(
 
     await writeAuditLog(merchantId, alertId, undefined, "system", "alert_escalated", {
       reason: decision.reason,
+    });
+
+    sendNotification({
+      type: "escalated",
+      merchantId,
+      alertId,
+      amount: parsed.amount,
+      currency: parsed.currency,
+      source: parsed.source,
+      reasonCategory: parsed.reasonCategory,
+      customerEmail: chargeDetails?.customerEmail ?? undefined,
     });
     return;
   }
@@ -397,6 +421,19 @@ async function processAlert(
         });
 
         app.log.info({ alertId, actionId, refundId: result.stripeRefundId }, "Auto-refund executed");
+
+        sendNotification({
+          type: "auto_refund",
+          merchantId,
+          alertId,
+          amount: parsed.amount,
+          currency: parsed.currency,
+          source: parsed.source,
+          reasonCategory: parsed.reasonCategory,
+          customerEmail: chargeDetails?.customerEmail ?? undefined,
+          policyName: policy.name,
+          refundId: result.stripeRefundId,
+        });
       } else {
         await db
           .update(schema.refundActions)
