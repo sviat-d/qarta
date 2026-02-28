@@ -130,6 +130,33 @@ export async function connectRoutes(app: FastifyInstance) {
         })
         .where(eq(schema.merchants.id, merchantId));
 
+      // Auto-register webhook endpoint on the connected account
+      let webhookEndpointId: string | null = null;
+      if (config.API_PUBLIC_URL) {
+        try {
+          const connectedStripe = new Stripe(response.access_token!);
+          const webhookEndpoint = await connectedStripe.webhookEndpoints.create({
+            url: `${config.API_PUBLIC_URL}/v1/webhooks/stripe`,
+            enabled_events: [
+              "radar.early_fraud_warning.created",
+              "charge.dispute.created",
+              "charge.dispute.updated",
+              "charge.dispute.closed",
+              "charge.refunded",
+            ],
+            description: "Qarta chargeback deflection",
+          });
+          webhookEndpointId = webhookEndpoint.id;
+          app.log.info(
+            { webhookEndpointId, merchantId },
+            "Stripe webhook endpoint registered",
+          );
+        } catch (webhookErr) {
+          // Non-blocking: webhook can be set up manually later
+          app.log.warn({ err: webhookErr, merchantId }, "Failed to auto-register webhook endpoint");
+        }
+      }
+
       // Audit log
       await db.insert(schema.auditLog).values({
         id: `aud_${nanoid()}`,
@@ -139,23 +166,21 @@ export async function connectRoutes(app: FastifyInstance) {
         details: {
           stripeAccountId: response.stripe_user_id,
           livemode: response.livemode,
+          webhookEndpointId,
         },
       });
 
-      return reply.send({
-        success: true,
-        data: {
-          stripeAccountId: response.stripe_user_id,
-          livemode: response.livemode,
-          connected: true,
-        },
-      });
+      // Redirect to dashboard with success indicator
+      const redirectUrl = new URL(`${config.DASHBOARD_URL}/onboarding`);
+      redirectUrl.searchParams.set("stripe", "connected");
+      return reply.redirect(redirectUrl.toString());
     } catch (err) {
       app.log.error({ err }, "Stripe OAuth token exchange failed");
-      return reply.status(500).send({
-        success: false,
-        error: { code: "OAUTH_ERROR", message: "Failed to connect Stripe account" },
-      });
+
+      // Redirect to dashboard with error
+      const redirectUrl = new URL(`${config.DASHBOARD_URL}/onboarding`);
+      redirectUrl.searchParams.set("stripe", "error");
+      return reply.redirect(redirectUrl.toString());
     }
   });
 

@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useCallback } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
-import { createPolicy } from "@/lib/api";
+import { createPolicy, initiateStripeConnect, fetchStripeStatus } from "@/lib/api";
 import { isDemoMode } from "@/lib/demo-data";
 
 /* ─── Types ─── */
@@ -391,9 +391,11 @@ function SelectProducts({
 function ConnectIntegrations({
   integrations,
   onToggle,
+  connectingStripe,
 }: {
   integrations: Integration[];
   onToggle: (id: string) => void;
+  connectingStripe?: boolean;
 }) {
   const processors = integrations.filter((i) => i.category === "payment");
   const enrichment = integrations.filter((i) => i.category === "enrichment");
@@ -430,44 +432,52 @@ function ConnectIntegrations({
           Payment Processors
         </h2>
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
-          {processors.map((integration) => (
-            <button
-              key={integration.id}
-              onClick={() => onToggle(integration.id)}
-              className={`group relative flex flex-col items-center gap-3 rounded-xl border-2 bg-white p-5 transition-all hover:shadow-md ${
-                integration.connected
-                  ? "border-brand-600 ring-1 ring-brand-600/20"
-                  : "border-gray-200 hover:border-gray-300"
-              }`}
-            >
-              {integration.connected && (
-                <div className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-brand-600">
-                  <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                  </svg>
-                </div>
-              )}
-              {integration.required && (
-                <span className="absolute left-1.5 top-1.5 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">
-                  Required
+          {processors.map((integration) => {
+            const isStripeConnecting = integration.id === "stripe" && connectingStripe;
+            return (
+              <button
+                key={integration.id}
+                onClick={() => onToggle(integration.id)}
+                disabled={isStripeConnecting}
+                className={`group relative flex flex-col items-center gap-3 rounded-xl border-2 bg-white p-5 transition-all hover:shadow-md ${
+                  integration.connected
+                    ? "border-brand-600 ring-1 ring-brand-600/20"
+                    : "border-gray-200 hover:border-gray-300"
+                } ${isStripeConnecting ? "opacity-70" : ""}`}
+              >
+                {integration.connected && (
+                  <div className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-brand-600">
+                    <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                    </svg>
+                  </div>
+                )}
+                {integration.required && !integration.connected && (
+                  <span className="absolute left-1.5 top-1.5 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">
+                    Required
+                  </span>
+                )}
+                {integration.icon}
+                <span className="text-sm font-medium text-gray-700">
+                  {integration.name}
                 </span>
-              )}
-              {integration.icon}
-              <span className="text-sm font-medium text-gray-700">
-                {integration.name}
-              </span>
-              {!integration.connected && (
-                <span className="text-xs text-gray-400 group-hover:text-brand-600">
-                  + Connect
-                </span>
-              )}
-              {integration.connected && (
-                <span className="text-xs font-medium text-brand-600">
-                  Connected
-                </span>
-              )}
-            </button>
-          ))}
+                {isStripeConnecting ? (
+                  <span className="inline-flex items-center gap-1.5 text-xs text-brand-600">
+                    <div className="h-3 w-3 animate-spin rounded-full border-2 border-brand-600 border-t-transparent" />
+                    Connecting...
+                  </span>
+                ) : !integration.connected ? (
+                  <span className="text-xs text-gray-400 group-hover:text-brand-600">
+                    + Connect
+                  </span>
+                ) : (
+                  <span className="text-xs font-medium text-brand-600">
+                    Connected
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -749,9 +759,41 @@ export default function OnboardingPage() {
     autoRefundEnabled: true,
     preset: "recommended",
   });
+  const [connectingStripe, setConnectingStripe] = useState(false);
 
   const { isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // Check Stripe connection status
+  const checkStripeStatus = useCallback(async () => {
+    if (isDemoMode()) return;
+    try {
+      const result = await fetchStripeStatus();
+      if (result.data?.connected) {
+        setIntegrations((prev) =>
+          prev.map((i) =>
+            i.id === "stripe" ? { ...i, connected: true } : i
+          )
+        );
+      }
+    } catch {
+      // Ignore — not critical
+    }
+  }, []);
+
+  useEffect(() => {
+    // If returning from Stripe OAuth
+    const stripeParam = searchParams.get("stripe");
+    if (stripeParam === "connected") {
+      setStep(2);
+      checkStripeStatus();
+    } else if (stripeParam === "error") {
+      setStep(2);
+    } else {
+      checkStripeStatus();
+    }
+  }, [searchParams, checkStripeStatus]);
 
   // Redirect to login if not authenticated
   if (!isLoading && !isAuthenticated) {
@@ -771,7 +813,27 @@ export default function OnboardingPage() {
     });
   };
 
-  const toggleIntegration = (id: string) => {
+  const toggleIntegration = async (id: string) => {
+    // For Stripe — trigger real OAuth flow
+    if (id === "stripe" && !isDemoMode()) {
+      const isConnected = integrations.find((i) => i.id === "stripe")?.connected;
+      if (isConnected) return; // Already connected
+
+      setConnectingStripe(true);
+      try {
+        const result = await initiateStripeConnect();
+        if (result.data?.url) {
+          window.location.href = result.data.url;
+          return;
+        }
+      } catch {
+        // Fall through to local toggle
+      } finally {
+        setConnectingStripe(false);
+      }
+    }
+
+    // Other integrations (or demo mode) — toggle locally
     setIntegrations((prev) =>
       prev.map((i) =>
         i.id === id ? { ...i, connected: !i.connected } : i
@@ -869,6 +931,7 @@ export default function OnboardingPage() {
           <ConnectIntegrations
             integrations={integrations}
             onToggle={toggleIntegration}
+            connectingStripe={connectingStripe}
           />
         )}
         {step === 3 && (

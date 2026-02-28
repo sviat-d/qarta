@@ -21,6 +21,12 @@ const envSchema = z.object({
 
   API_KEY_SALT: z.string().default("dev-salt-change-in-production"),
 
+  // Public URL of this API (for Stripe webhook endpoint registration)
+  API_PUBLIC_URL: z.string().optional(),
+
+  // Dashboard URL (for OAuth callback redirects)
+  DASHBOARD_URL: z.string().default("http://localhost:3001"),
+
   // Comma-separated list of allowed CORS origins
   CORS_ORIGINS: z.string().default("https://qarta.eu"),
 });
