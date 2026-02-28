@@ -1,8 +1,10 @@
+const DASHBOARD_URL = process.env.NEXT_PUBLIC_DASHBOARD_URL ?? "http://localhost:3001";
+
 export function Footer() {
   return (
     <footer className="border-t border-gray-100 bg-gray-50 px-6 py-12">
       <div className="mx-auto max-w-6xl">
-        <div className="grid gap-8 sm:grid-cols-3">
+        <div className="grid gap-8 sm:grid-cols-4">
           {/* Brand */}
           <div>
             <div className="flex items-center gap-2">
@@ -35,6 +37,23 @@ export function Footer() {
               <li>
                 <a href="#faq" className="hover:text-gray-700">
                   FAQ
+                </a>
+              </li>
+            </ul>
+          </div>
+
+          {/* Dashboard */}
+          <div>
+            <h4 className="text-sm font-semibold text-gray-900">Dashboard</h4>
+            <ul className="mt-3 space-y-2 text-sm text-gray-500">
+              <li>
+                <a href={`${DASHBOARD_URL}/login`} className="hover:text-gray-700">
+                  Sign In
+                </a>
+              </li>
+              <li>
+                <a href={`${DASHBOARD_URL}/login`} className="hover:text-gray-700">
+                  Try Demo
                 </a>
               </li>
             </ul>

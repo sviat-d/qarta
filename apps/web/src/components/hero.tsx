@@ -1,5 +1,7 @@
 import { WaitlistForm } from "./waitlist-form";
 
+const DASHBOARD_URL = process.env.NEXT_PUBLIC_DASHBOARD_URL ?? "http://localhost:3001";
+
 const metrics = [
   { value: "-70%", label: "Dispute Rate" },
   { value: "$15+", label: "Saved Per Alert" },
@@ -39,6 +41,16 @@ export function Hero() {
 
         <div className="animate-fade-in-up-delay-3 mt-10" id="waitlist">
           <WaitlistForm variant="dark" />
+          <p className="mt-4 text-sm text-slate-500">
+            or{" "}
+            <a
+              href={`${DASHBOARD_URL}/login`}
+              className="font-medium text-brand-400 underline decoration-brand-400/30 underline-offset-4 transition-colors hover:text-brand-300"
+            >
+              try the live demo
+            </a>
+            {" "}— no sign-up required
+          </p>
         </div>
 
         <div className="animate-fade-in-up-delay-3 mt-12 flex flex-wrap items-center justify-center gap-8 border-t border-white/10 pt-8 sm:gap-12">

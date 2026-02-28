@@ -1,5 +1,7 @@
 import { WaitlistForm } from "./waitlist-form";
 
+const DASHBOARD_URL = process.env.NEXT_PUBLIC_DASHBOARD_URL ?? "http://localhost:3001";
+
 export function CTA() {
   return (
     <section className="px-6 py-24">
@@ -22,6 +24,13 @@ export function CTA() {
           </div>
           <p className="mt-4 text-sm text-slate-600">
             Free during early access. 10 min setup. No code changes.
+            {" "}
+            <a
+              href={`${DASHBOARD_URL}/login`}
+              className="font-medium text-brand-400 underline decoration-brand-400/30 underline-offset-4 transition-colors hover:text-brand-300"
+            >
+              Try the demo
+            </a>
           </p>
         </div>
       </div>
