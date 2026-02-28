@@ -35,7 +35,7 @@ export default function DashboardLayout({
   return (
     <div className="min-h-screen bg-gray-50">
       <Sidebar />
-      <main className="ml-64">
+      <main className="pt-14 lg:ml-64 lg:pt-0">
         {isDemo && (
           <div className="flex items-center justify-between border-b border-brand-200 bg-brand-50 px-8 py-2.5">
             <p className="text-sm text-brand-800">

@@ -8,6 +8,13 @@
       "when": 1772216299463,
       "tag": "0000_blushing_darkhawk",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1772352000000,
+      "tag": "0001_add_notification_settings",
+      "breakpoints": true
     }
   ]
 }
