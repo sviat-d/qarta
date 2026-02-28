@@ -17,7 +17,7 @@ export async function setupRoutes(app: FastifyInstance) {
       .select({ total: count() })
       .from(schema.merchants);
 
-    if (result.total > 0) {
+    if (result && result.total > 0) {
       return reply.status(403).send({
         success: false,
         error: {
