@@ -29,6 +29,9 @@ export async function connectRoutes(app: FastifyInstance) {
     authorizeUrl.searchParams.set("client_id", config.STRIPE_CLIENT_ID);
     authorizeUrl.searchParams.set("scope", "read_write");
     authorizeUrl.searchParams.set("state", state);
+    if (config.API_PUBLIC_URL) {
+      authorizeUrl.searchParams.set("redirect_uri", `${config.API_PUBLIC_URL}/v1/connect/stripe/callback`);
+    }
 
     return reply.send({
       success: true,
