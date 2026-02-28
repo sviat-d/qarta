@@ -9,7 +9,7 @@ export default function LoginPage() {
   const [apiKey, setApiKeyInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const { login, isAuthenticated } = useAuth();
+  const { login, loginDemo, isAuthenticated } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
@@ -119,6 +119,26 @@ export default function LoginPage() {
               )}
             </button>
           </form>
+
+          <div className="mt-4">
+            <div className="relative my-4">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-200" />
+              </div>
+              <div className="relative flex justify-center text-xs">
+                <span className="bg-white px-2 text-gray-400">or</span>
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                loginDemo();
+                router.push("/");
+              }}
+              className="w-full rounded-lg border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            >
+              View Demo Dashboard
+            </button>
+          </div>
 
           <div className="mt-6 text-center">
             <p className="text-sm text-gray-500">
