@@ -14,7 +14,8 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (isAuthenticated) {
-      router.replace("/");
+      const onboarded = typeof window !== "undefined" && localStorage.getItem("qarta_onboarding_complete");
+      router.replace(onboarded ? "/" : "/onboarding");
     }
   }, [isAuthenticated, router]);
 
@@ -35,7 +36,7 @@ export default function LoginPage() {
       }
 
       login(apiKey);
-      router.push("/");
+      router.push("/onboarding");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Authentication failed");
     } finally {
@@ -132,7 +133,7 @@ export default function LoginPage() {
             <button
               onClick={() => {
                 loginDemo();
-                router.push("/");
+                router.push("/onboarding");
               }}
               className="w-full rounded-lg border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
             >
