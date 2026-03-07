@@ -21,6 +21,11 @@ const envSchema = z.object({
 
   API_KEY_SALT: z.string().default("dev-salt-change-in-production"),
 
+  // Email notifications
+  EMAIL_PROVIDER: z.enum(["resend", "sendgrid"]).default("resend"),
+  EMAIL_API_KEY: z.string().optional(),
+  EMAIL_FROM: z.string().default("alerts@qarta.eu"),
+
   // Comma-separated list of allowed CORS origins
   CORS_ORIGINS: z.string().default("https://qarta.eu"),
 });

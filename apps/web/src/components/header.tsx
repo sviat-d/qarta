@@ -46,10 +46,10 @@ export function Header() {
             Sign In
           </a>
           <a
-            href={`${DASHBOARD_URL}/login`}
+            href={`${DASHBOARD_URL}/signup`}
             className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white transition-all hover:bg-brand-500 hover:shadow-lg hover:shadow-brand-600/25"
           >
-            Try Demo
+            Get Started
           </a>
           <button
             onClick={() => setMobileOpen(!mobileOpen)}
@@ -89,6 +89,12 @@ export function Header() {
                 className="block rounded-lg px-3 py-2.5 text-sm font-medium text-slate-300 transition-colors hover:text-white"
               >
                 Sign In
+              </a>
+              <a
+                href={`${DASHBOARD_URL}/signup`}
+                className="mt-1 block rounded-lg bg-brand-600 px-3 py-2.5 text-center text-sm font-medium text-white transition-all hover:bg-brand-500"
+              >
+                Get Started
               </a>
             </div>
           </div>

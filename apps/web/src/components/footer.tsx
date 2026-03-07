@@ -57,8 +57,8 @@ export function Footer() {
                 </a>
               </li>
               <li>
-                <a href={`${DASHBOARD_URL}/login`} className="hover:text-gray-700">
-                  Try Demo
+                <a href={`${DASHBOARD_URL}/signup`} className="hover:text-gray-700">
+                  Create Account
                 </a>
               </li>
             </ul>

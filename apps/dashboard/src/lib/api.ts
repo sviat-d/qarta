@@ -162,6 +162,45 @@ export async function deletePolicy(id: string): Promise<ApiResponse<{ id: string
 
 // ─── Auth ───
 
+export async function registerMerchant(body: {
+  name: string;
+  email: string;
+  password: string;
+}): Promise<ApiResponse<{ merchantId: string; name: string; email: string; apiKey: string }>> {
+  const response = await fetch(`${API_BASE}/v1/auth/register`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new ApiError(
+      data?.error?.code ?? "UNKNOWN_ERROR",
+      data?.error?.message ?? "Registration failed",
+    );
+  }
+  return data;
+}
+
+export async function loginMerchant(body: {
+  email: string;
+  password: string;
+}): Promise<ApiResponse<{ apiKey: string; merchant: { id: string; name: string; email: string; stripeAccountId: string | null } }>> {
+  const response = await fetch(`${API_BASE}/v1/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new ApiError(
+      data?.error?.code ?? "UNKNOWN_ERROR",
+      data?.error?.message ?? "Login failed",
+    );
+  }
+  return data;
+}
+
 export async function fetchMe(): Promise<
   ApiResponse<{ id: string; name: string; email: string; stripeAccountId: string | null }>
 > {

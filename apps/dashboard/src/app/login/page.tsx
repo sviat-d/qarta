@@ -4,8 +4,12 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
+import { loginMerchant } from "@/lib/api";
 
 export default function LoginPage() {
+  const [mode, setMode] = useState<"credentials" | "apikey">("credentials");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [apiKey, setApiKeyInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -14,18 +18,39 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (isAuthenticated) {
-      const onboarded = typeof window !== "undefined" && localStorage.getItem("qarta_onboarding_complete");
+      const onboarded =
+        typeof window !== "undefined" &&
+        localStorage.getItem("qarta_onboarding_complete");
       router.replace(onboarded ? "/" : "/onboarding");
     }
   }, [isAuthenticated, router]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleCredentialsLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError("");
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+      const result = await loginMerchant({ email, password });
+      if (result.data?.apiKey) {
+        login(result.data.apiKey);
+        router.push("/onboarding");
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Login failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleApiKeyLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+
+    try {
+      const apiUrl =
+        process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
       const res = await fetch(`${apiUrl}/v1/auth/me`, {
         headers: { Authorization: `Bearer ${apiKey}` },
       });
@@ -44,6 +69,24 @@ export default function LoginPage() {
     }
   };
 
+  const Spinner = () => (
+    <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+      <circle
+        className="opacity-25"
+        cx="12"
+        cy="12"
+        r="10"
+        stroke="currentColor"
+        strokeWidth="4"
+      />
+      <path
+        className="opacity-75"
+        fill="currentColor"
+        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+      />
+    </svg>
+  );
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#f5f6fa]">
       <div className="w-full max-w-md">
@@ -56,70 +99,123 @@ export default function LoginPage() {
             Sign in to Qarta
           </h1>
           <p className="mt-2 text-sm text-gray-500">
-            Enter your API key to access the dashboard
+            {mode === "credentials"
+              ? "Enter your email and password"
+              : "Enter your API key to access the dashboard"}
           </p>
         </div>
 
         {/* Form */}
         <div className="rounded-xl border border-gray-200 bg-white p-8 shadow-sm">
-          <form onSubmit={handleSubmit} className="space-y-5">
-            {error && (
-              <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
-                {error}
-              </div>
-            )}
-
-            <div>
-              <label
-                htmlFor="apiKey"
-                className="mb-1.5 block text-sm font-medium text-gray-700"
-              >
-                API Key
-              </label>
-              <input
-                id="apiKey"
-                type="password"
-                value={apiKey}
-                onChange={(e) => setApiKeyInput(e.target.value)}
-                required
-                className="w-full rounded-lg border border-gray-300 px-4 py-2.5 font-mono text-sm text-gray-900 placeholder:text-gray-400 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
-                placeholder="qk_live_..."
-              />
+          {error && (
+            <div className="mb-5 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
+              {error}
             </div>
+          )}
 
+          {mode === "credentials" ? (
+            <form onSubmit={handleCredentialsLogin} className="space-y-5">
+              <div>
+                <label
+                  htmlFor="email"
+                  className="mb-1.5 block text-sm font-medium text-gray-700"
+                >
+                  Email
+                </label>
+                <input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                  placeholder="you@company.com"
+                />
+              </div>
+
+              <div>
+                <label
+                  htmlFor="password"
+                  className="mb-1.5 block text-sm font-medium text-gray-700"
+                >
+                  Password
+                </label>
+                <input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                  placeholder="Your password"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 disabled:opacity-50"
+              >
+                {loading ? (
+                  <span className="inline-flex items-center gap-2">
+                    <Spinner />
+                    Signing in...
+                  </span>
+                ) : (
+                  "Sign in"
+                )}
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={handleApiKeyLogin} className="space-y-5">
+              <div>
+                <label
+                  htmlFor="apiKey"
+                  className="mb-1.5 block text-sm font-medium text-gray-700"
+                >
+                  API Key
+                </label>
+                <input
+                  id="apiKey"
+                  type="password"
+                  value={apiKey}
+                  onChange={(e) => setApiKeyInput(e.target.value)}
+                  required
+                  className="w-full rounded-lg border border-gray-300 px-4 py-2.5 font-mono text-sm text-gray-900 placeholder:text-gray-400 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                  placeholder="qk_live_..."
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 disabled:opacity-50"
+              >
+                {loading ? (
+                  <span className="inline-flex items-center gap-2">
+                    <Spinner />
+                    Signing in...
+                  </span>
+                ) : (
+                  "Sign in with API Key"
+                )}
+              </button>
+            </form>
+          )}
+
+          <div className="mt-4">
             <button
-              type="submit"
-              disabled={loading}
-              className="w-full rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 disabled:opacity-50"
+              onClick={() => {
+                setMode(mode === "credentials" ? "apikey" : "credentials");
+                setError("");
+              }}
+              className="w-full text-center text-xs text-gray-400 hover:text-gray-600"
             >
-              {loading ? (
-                <span className="inline-flex items-center gap-2">
-                  <svg
-                    className="h-4 w-4 animate-spin"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    />
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                    />
-                  </svg>
-                  Signing in...
-                </span>
-              ) : (
-                "Sign in"
-              )}
+              {mode === "credentials"
+                ? "Sign in with API key instead"
+                : "Sign in with email & password"}
             </button>
-          </form>
+          </div>
 
           <div className="mt-4">
             <div className="relative my-4">
@@ -145,10 +241,10 @@ export default function LoginPage() {
             <p className="text-sm text-gray-500">
               Don&apos;t have an account?{" "}
               <Link
-                href="https://qarta.eu"
+                href="/signup"
                 className="font-medium text-brand-600 hover:text-brand-700"
               >
-                Join the waitlist
+                Create account
               </Link>
             </p>
           </div>
