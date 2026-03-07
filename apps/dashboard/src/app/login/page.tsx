@@ -13,17 +13,15 @@ export default function LoginPage() {
   const [apiKey, setApiKeyInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const { login, loginDemo, isAuthenticated } = useAuth();
+  const { login, logout, loginDemo, isAuthenticated } = useAuth();
   const router = useRouter();
 
+  // Always start fresh — clear any previous session so the user sees the login form
   useEffect(() => {
     if (isAuthenticated) {
-      const onboarded =
-        typeof window !== "undefined" &&
-        localStorage.getItem("qarta_onboarding_complete");
-      router.replace(onboarded ? "/" : "/onboarding");
+      logout({ skipRedirect: true });
     }
-  }, [isAuthenticated, router]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleCredentialsLogin = async (e: React.FormEvent) => {
     e.preventDefault();
