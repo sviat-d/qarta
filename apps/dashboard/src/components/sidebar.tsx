@@ -153,7 +153,7 @@ export function Sidebar() {
             <p className="truncate text-xs text-gray-500">{email}</p>
           </div>
           <button
-            onClick={logout}
+            onClick={() => logout()}
             className="rounded-lg p-1.5 text-gray-500 hover:bg-sidebar-hover hover:text-gray-300"
             title="Sign out"
           >
