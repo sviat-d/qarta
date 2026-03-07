@@ -1,5 +1,6 @@
 import { eq } from "drizzle-orm";
 import { db, schema } from "../db/index.js";
+import { sendEmailNotification } from "./email-notifier.js";
 
 interface NotificationEvent {
   type: "new_alert" | "auto_refund" | "escalated";
@@ -15,7 +16,7 @@ interface NotificationEvent {
 }
 
 /**
- * Send notifications for an alert event (Slack webhook).
+ * Send notifications for an alert event (Slack + Email).
  * Fire-and-forget — errors are logged but don't block the caller.
  */
 export async function sendNotification(event: NotificationEvent): Promise<void> {
@@ -36,7 +37,16 @@ export async function sendNotification(event: NotificationEvent): Promise<void> 
 
     // Send Slack notification
     if (settings.slackEnabled && settings.slackWebhookUrl) {
-      await sendSlackNotification(settings.slackWebhookUrl, event);
+      sendSlackNotification(settings.slackWebhookUrl, event).catch((err) =>
+        console.error("Slack notification error:", err),
+      );
+    }
+
+    // Send email notification
+    if (settings.emailEnabled && settings.emailAddress) {
+      sendEmailNotification(event).catch((err) =>
+        console.error("Email notification error:", err),
+      );
     }
   } catch (err) {
     // Fire-and-forget: log but don't throw

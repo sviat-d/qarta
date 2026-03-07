@@ -1,12 +1,18 @@
 import type { Metadata } from "next";
-import { Poppins } from "next/font/google";
+import localFont from "next/font/local";
 import { AuthProvider } from "@/lib/auth-context";
 import "./globals.css";
 
-const poppins = Poppins({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+const poppins = localFont({
+  src: [
+    { path: "../fonts/Poppins-Regular.woff2", weight: "400", style: "normal" },
+    { path: "../fonts/Poppins-Medium.woff2", weight: "500", style: "normal" },
+    { path: "../fonts/Poppins-SemiBold.woff2", weight: "600", style: "normal" },
+    { path: "../fonts/Poppins-Bold.woff2", weight: "700", style: "normal" },
+  ],
   variable: "--font-poppins",
+  display: "swap",
+  fallback: ["system-ui", "Arial", "sans-serif"],
 });
 
 export const metadata: Metadata = {
