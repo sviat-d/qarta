@@ -90,6 +90,12 @@ export function Header() {
               >
                 Sign In
               </a>
+              <a
+                href={`${DASHBOARD_URL}/signup`}
+                className="mt-1 block rounded-lg bg-brand-600 px-3 py-2.5 text-center text-sm font-medium text-white transition-all hover:bg-brand-500"
+              >
+                Get Started
+              </a>
             </div>
           </div>
         </nav>
