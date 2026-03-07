@@ -39,7 +39,7 @@ export function Hero() {
 
         <div className="animate-fade-in-up-delay-3 mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
           <a
-            href={`${DASHBOARD_URL}/login`}
+            href={`${DASHBOARD_URL}/signup`}
             className="inline-flex items-center gap-2 rounded-lg bg-brand-600 px-8 py-3.5 text-sm font-semibold text-white transition-all hover:bg-brand-500 hover:shadow-lg hover:shadow-brand-600/25"
           >
             Get Started

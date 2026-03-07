@@ -109,7 +109,7 @@ export function Pricing() {
               </ul>
 
               <a
-                href={`${DASHBOARD_URL}/login`}
+                href={`${DASHBOARD_URL}/signup`}
                 className={`mt-8 block rounded-lg px-4 py-3 text-center text-sm font-semibold transition-all ${plan.ctaStyle}`}
               >
                 {plan.cta}

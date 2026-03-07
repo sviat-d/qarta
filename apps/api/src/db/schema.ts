@@ -56,16 +56,21 @@ export const auditActorEnum = pgEnum("audit_actor", ["system", "user"]);
 
 // --- Tables ---
 
-export const merchants = pgTable("merchants", {
-  id: text("id").primaryKey(),
-  name: text("name").notNull(),
-  email: text("email").notNull(),
-  apiKeyHash: text("api_key_hash").notNull(),
-  stripeAccountId: text("stripe_account_id"),
-  onboardedAt: timestamp("onboarded_at"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+export const merchants = pgTable(
+  "merchants",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    email: text("email").notNull().unique(),
+    passwordHash: text("password_hash"),
+    apiKeyHash: text("api_key_hash").notNull(),
+    stripeAccountId: text("stripe_account_id"),
+    onboardedAt: timestamp("onboarded_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [index("merchants_email_idx").on(table.email)],
+);
 
 export const stripeConnections = pgTable(
   "stripe_connections",
