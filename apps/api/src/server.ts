@@ -59,7 +59,7 @@ async function buildServer() {
 
 async function runMigrations() {
   console.log("Running database migrations...");
-  await migrate(db, { migrationsFolder: "./drizzle" });
+  await migrate(db, { migrationsFolder: "apps/api/drizzle" });
   console.log("Migrations completed successfully");
 }
 
