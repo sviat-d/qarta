@@ -372,7 +372,7 @@ function ApiKeysTab() {
 
         <div className="mt-4">
           <button
-            onClick={logout}
+            onClick={() => logout()}
             className="rounded-lg border border-red-200 px-4 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50"
           >
             Sign out
