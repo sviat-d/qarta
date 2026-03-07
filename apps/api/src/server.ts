@@ -2,6 +2,8 @@ import Fastify from "fastify";
 import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
 import rateLimit from "@fastify/rate-limit";
+import { migrate } from "drizzle-orm/postgres-js/migrator";
+import { db } from "./db/index.js";
 import { config } from "./config.js";
 import { healthRoutes } from "./routes/health.js";
 import { alertRoutes } from "./routes/payments.js";
@@ -55,7 +57,20 @@ async function buildServer() {
   return app;
 }
 
+async function runMigrations() {
+  console.log("Running database migrations...");
+  await migrate(db, { migrationsFolder: "./drizzle" });
+  console.log("Migrations completed successfully");
+}
+
 async function start() {
+  try {
+    await runMigrations();
+  } catch (err) {
+    console.error("Migration failed:", err);
+    process.exit(1);
+  }
+
   const app = await buildServer();
 
   try {
