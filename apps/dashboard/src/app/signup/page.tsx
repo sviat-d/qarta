@@ -12,14 +12,15 @@ export default function SignupPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const { login, isAuthenticated } = useAuth();
+  const { login, logout, isAuthenticated } = useAuth();
   const router = useRouter();
 
+  // Always start fresh — clear any previous session so the user sees the signup form
   useEffect(() => {
     if (isAuthenticated) {
-      router.replace("/onboarding");
+      logout({ skipRedirect: true });
     }
-  }, [isAuthenticated, router]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

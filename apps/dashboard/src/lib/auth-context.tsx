@@ -18,7 +18,7 @@ interface AuthContextValue {
   isDemo: boolean;
   login: (apiKey: string) => void;
   loginDemo: () => void;
-  logout: () => void;
+  logout: (options?: { skipRedirect?: boolean }) => void;
 }
 
 const AuthContext = createContext<AuthContextValue>({
@@ -57,13 +57,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsAuthenticated(true);
   }, []);
 
-  const logout = useCallback(() => {
+  const logout = useCallback((options?: { skipRedirect?: boolean }) => {
     clearApiKey();
     disableDemoMode();
     localStorage.removeItem("qarta_onboarding_complete");
     setIsDemo(false);
     setIsAuthenticated(false);
-    router.push("/login");
+    if (!options?.skipRedirect) {
+      router.push("/login");
+    }
   }, [router]);
 
   return (
