@@ -15,6 +15,13 @@
       "when": 1772352000000,
       "tag": "0001_add_notification_settings",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1772438400000,
+      "tag": "0002_add_merchant_password",
+      "breakpoints": true
     }
   ]
 }
