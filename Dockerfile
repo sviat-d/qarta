@@ -39,6 +39,9 @@ RUN npm ci --omit=dev
 COPY --from=builder /app/apps/api/dist apps/api/dist
 COPY --from=builder /app/packages/shared/dist packages/shared/dist
 
+# Copy drizzle migrations
+COPY --from=builder /app/apps/api/drizzle apps/api/drizzle
+
 ENV PORT=4000
 
 CMD ["node", "apps/api/dist/server.js"]
