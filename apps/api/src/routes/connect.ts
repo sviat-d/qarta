@@ -37,32 +37,26 @@ export async function connectRoutes(app: FastifyInstance) {
   });
 
   // Handle Stripe OAuth callback — no auth header (redirect from Stripe)
+  // Redirects user's browser back to the dashboard after processing.
   app.get<{
     Querystring: { code?: string; state?: string; error?: string; error_description?: string };
   }>("/stripe/callback", async (request, reply) => {
     const { code, state, error, error_description } = request.query;
+    const dashboardSettings = `${config.DASHBOARD_URL}/settings`;
 
     if (error) {
-      return reply.status(400).send({
-        success: false,
-        error: { code: "OAUTH_ERROR", message: error_description ?? error },
-      });
+      const msg = encodeURIComponent(error_description ?? error ?? "OAuth error");
+      return reply.redirect(`${dashboardSettings}?stripe=error&message=${msg}`);
     }
 
     if (!code || !state) {
-      return reply.status(400).send({
-        success: false,
-        error: { code: "BAD_REQUEST", message: "Missing code or state parameter" },
-      });
+      return reply.redirect(`${dashboardSettings}?stripe=error&message=${encodeURIComponent("Missing code or state parameter")}`);
     }
 
     // Extract merchant ID from state
     const merchantId = state.split(":")[0];
     if (!merchantId) {
-      return reply.status(400).send({
-        success: false,
-        error: { code: "BAD_REQUEST", message: "Invalid state parameter" },
-      });
+      return reply.redirect(`${dashboardSettings}?stripe=error&message=${encodeURIComponent("Invalid state parameter")}`);
     }
 
     const merchant = await db.query.merchants.findFirst({
@@ -70,10 +64,7 @@ export async function connectRoutes(app: FastifyInstance) {
     });
 
     if (!merchant) {
-      return reply.status(404).send({
-        success: false,
-        error: { code: "NOT_FOUND", message: "Merchant not found" },
-      });
+      return reply.redirect(`${dashboardSettings}?stripe=error&message=${encodeURIComponent("Merchant not found")}`);
     }
 
     try {
@@ -85,10 +76,7 @@ export async function connectRoutes(app: FastifyInstance) {
       });
 
       if (!response.stripe_user_id) {
-        return reply.status(400).send({
-          success: false,
-          error: { code: "OAUTH_ERROR", message: "No Stripe account ID returned" },
-        });
+        return reply.redirect(`${dashboardSettings}?stripe=error&message=${encodeURIComponent("No Stripe account ID returned")}`);
       }
 
       // Upsert Stripe connection
@@ -142,20 +130,11 @@ export async function connectRoutes(app: FastifyInstance) {
         },
       });
 
-      return reply.send({
-        success: true,
-        data: {
-          stripeAccountId: response.stripe_user_id,
-          livemode: response.livemode,
-          connected: true,
-        },
-      });
+      app.log.info({ merchantId, stripeAccountId: response.stripe_user_id }, "Stripe connected via OAuth");
+      return reply.redirect(`${dashboardSettings}?stripe=success`);
     } catch (err) {
       app.log.error({ err }, "Stripe OAuth token exchange failed");
-      return reply.status(500).send({
-        success: false,
-        error: { code: "OAUTH_ERROR", message: "Failed to connect Stripe account" },
-      });
+      return reply.redirect(`${dashboardSettings}?stripe=error&message=${encodeURIComponent("Failed to connect Stripe account")}`);
     }
   });
 
