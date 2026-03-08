@@ -155,9 +155,11 @@ export async function sendPasswordResetEmail(
     const fromAddress = process.env.EMAIL_FROM ?? "alerts@qarta.eu";
 
     if (!apiKey) {
-      console.warn("EMAIL_API_KEY not set, skipping password reset email");
+      console.error("[email] EMAIL_API_KEY not set — cannot send password reset email!");
       return;
     }
+
+    console.log(`[email] Preparing password reset email: provider=${provider} from=${fromAddress} to=${to}`);
 
     const subject = "[Qarta] Reset your password";
     const html = `
@@ -207,18 +209,23 @@ async function sendViaResend(
   subject: string,
   html: string,
 ): Promise<void> {
+  const payload = { from, to: [to], subject, html };
+  console.log(`[email] Sending via Resend to=${to} from=${from}`);
+
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${apiKey}`,
     },
-    body: JSON.stringify({ from, to: [to], subject, html }),
+    body: JSON.stringify(payload),
   });
 
+  const body = await response.text();
   if (!response.ok) {
-    const body = await response.text();
-    console.error(`Resend email failed: ${response.status} ${body}`);
+    console.error(`[email] Resend failed: ${response.status} ${body}`);
+  } else {
+    console.log(`[email] Resend success: ${body}`);
   }
 }
 

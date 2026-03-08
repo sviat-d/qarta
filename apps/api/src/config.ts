@@ -27,7 +27,7 @@ const envSchema = z.object({
   // Email notifications
   EMAIL_PROVIDER: z.enum(["resend", "sendgrid"]).default("resend"),
   EMAIL_API_KEY: z.string().optional(),
-  EMAIL_FROM: z.string().default("alerts@qarta.eu"),
+  EMAIL_FROM: z.string().default("Qarta <noreply@qarta.eu>"),
 
   // Dashboard URL for password reset links
   DASHBOARD_URL: z.string().default("https://app.qarta.eu"),
