@@ -8,7 +8,7 @@ import {
   parseDispute,
   type ParsedAlert,
 } from "../services/alert-processor.js";
-import { verifyWebhookSignature, getChargeDetails } from "../services/stripe.js";
+import { verifyWebhookSignature, verifyConnectWebhookSignature, getChargeDetails } from "../services/stripe.js";
 import { evaluateAlert } from "../services/policy-engine.js";
 import { executeRefund } from "../services/refund-executor.js";
 import { db, schema } from "../db/index.js";
@@ -198,6 +198,173 @@ export async function webhookRoutes(app: FastifyInstance) {
     }
 
     // Mark event as processed
+    await db
+      .update(schema.webhookEvents)
+      .set({ processedAt: new Date() })
+      .where(eq(schema.webhookEvents.id, webhookEventId));
+
+    return reply.status(200).send({ received: true, processed: true });
+  });
+
+  // ── Connect webhook endpoint (for connected Stripe accounts) ──
+  app.post("/stripe/connect", async (request, reply) => {
+    const rawBody = request.body as string;
+
+    const sig = request.headers["stripe-signature"] as string | undefined;
+    if (!sig) {
+      return reply.status(400).send({
+        success: false,
+        error: { code: "MISSING_SIGNATURE", message: "Missing stripe-signature header" },
+      });
+    }
+
+    let event: {
+      id: string;
+      type: string;
+      account?: string;
+      data: { object: Record<string, unknown> };
+    };
+
+    if (config.STRIPE_CONNECT_WEBHOOK_SECRET) {
+      const verified = verifyConnectWebhookSignature(rawBody, sig);
+      if (!verified) {
+        app.log.warn("Connect webhook signature verification failed");
+        return reply.status(400).send({
+          success: false,
+          error: { code: "INVALID_SIGNATURE", message: "Webhook signature verification failed" },
+        });
+      }
+      event = verified as unknown as typeof event;
+    } else {
+      event = JSON.parse(rawBody);
+    }
+
+    app.log.info({ type: event.type, id: event.id, account: event.account }, "Received Stripe Connect webhook");
+
+    if (
+      !STRIPE_EVENTS_OF_INTEREST.includes(
+        event.type as (typeof STRIPE_EVENTS_OF_INTEREST)[number],
+      )
+    ) {
+      return reply.status(200).send({ received: true, processed: false });
+    }
+
+    // Idempotency check
+    const existing = await db.query.webhookEvents.findFirst({
+      where: eq(schema.webhookEvents.stripeEventId, event.id),
+    });
+    if (existing) {
+      app.log.info({ eventId: event.id }, "Duplicate webhook event, skipping");
+      return reply.status(200).send({ received: true, processed: false, duplicate: true });
+    }
+
+    // Store raw event
+    const webhookEventId = `whe_${nanoid()}`;
+    await db.insert(schema.webhookEvents).values({
+      id: webhookEventId,
+      stripeEventId: event.id,
+      type: event.type,
+      payload: event.data.object,
+    });
+
+    // Resolve merchant from connected account
+    let merchantId: string | null = null;
+    let stripeSecretKey: string | undefined;
+
+    if (event.account) {
+      const connection = await db.query.stripeConnections.findFirst({
+        where: eq(schema.stripeConnections.stripeAccountId, event.account),
+      });
+      if (connection) {
+        merchantId = connection.merchantId;
+        stripeSecretKey = connection.accessToken;
+      }
+    }
+
+    if (!merchantId) {
+      app.log.warn({ eventId: event.id, account: event.account }, "No merchant found for Connect webhook event");
+      await db
+        .update(schema.webhookEvents)
+        .set({ processedAt: new Date() })
+        .where(eq(schema.webhookEvents.id, webhookEventId));
+      return reply.status(200).send({ received: true, processed: false, reason: "no_merchant" });
+    }
+
+    try {
+      switch (event.type) {
+        case "radar.early_fraud_warning.created": {
+          const efw = event.data.object as {
+            id: string;
+            actionable: boolean;
+            charge: string;
+            payment_intent?: string;
+            created: number;
+          };
+
+          const charge = await getChargeDetails(efw.charge, stripeSecretKey);
+          const parsed = parseEarlyFraudWarning(
+            efw,
+            charge?.amount ?? 0,
+            charge?.currency ?? "USD",
+          );
+
+          await processAlert(app, merchantId, parsed, charge, stripeSecretKey);
+          break;
+        }
+
+        case "charge.dispute.created": {
+          const dispute = event.data.object as {
+            id: string;
+            charge: string;
+            payment_intent?: string;
+            amount: number;
+            currency: string;
+            reason: string;
+            status: string;
+          };
+
+          const parsed = parseDispute(dispute);
+          const charge = await getChargeDetails(dispute.charge, stripeSecretKey);
+
+          await processAlert(app, merchantId, parsed, charge, stripeSecretKey);
+          break;
+        }
+
+        case "charge.dispute.updated":
+        case "charge.dispute.closed": {
+          const dispute = event.data.object as {
+            id: string;
+            status: string;
+          };
+
+          const alert = await db.query.alerts.findFirst({
+            where: eq(schema.alerts.stripeDisputeId, dispute.id),
+          });
+
+          if (alert) {
+            const newStatus = dispute.status === "won" ? "dismissed" as const : "expired" as const;
+            await db
+              .update(schema.alerts)
+              .set({ status: newStatus, updatedAt: new Date() })
+              .where(eq(schema.alerts.id, alert.id));
+
+            await writeAuditLog(merchantId, alert.id, undefined, "system", `dispute_${dispute.status}`, {
+              stripeDisputeId: dispute.id,
+              disputeStatus: dispute.status,
+            });
+          }
+          break;
+        }
+
+        case "charge.refunded": {
+          app.log.info({ type: event.type, account: event.account }, "External refund tracked (Connect)");
+          break;
+        }
+      }
+    } catch (err) {
+      app.log.error({ err, eventType: event.type }, "Error processing Connect webhook");
+    }
+
     await db
       .update(schema.webhookEvents)
       .set({ processedAt: new Date() })

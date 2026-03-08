@@ -48,6 +48,31 @@ export function verifyWebhookSignature(
 }
 
 /**
+ * Verify and construct a Stripe Connect webhook event from the raw body + signature.
+ * Uses STRIPE_CONNECT_WEBHOOK_SECRET for connected account events.
+ * Returns null if verification fails.
+ */
+export function verifyConnectWebhookSignature(
+  rawBody: string | Buffer,
+  signature: string,
+): Stripe.Event | null {
+  if (!config.STRIPE_CONNECT_WEBHOOK_SECRET) {
+    throw new Error("STRIPE_CONNECT_WEBHOOK_SECRET is not configured");
+  }
+
+  try {
+    const stripe = getStripeClient();
+    return stripe.webhooks.constructEvent(
+      rawBody,
+      signature,
+      config.STRIPE_CONNECT_WEBHOOK_SECRET,
+    );
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Retrieve a Stripe charge to get amount, currency, and customer details.
  * Used when processing EFW events that only include a charge ID.
  */
