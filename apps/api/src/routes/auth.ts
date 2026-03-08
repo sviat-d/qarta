@@ -42,8 +42,19 @@ const loginSchema = z.object({
  * Auth routes — registration, login, and API key validation.
  */
 export async function authRoutes(app: FastifyInstance) {
+  // Strict rate limits for auth endpoints to prevent brute-force
+  const authRateLimit = {
+    config: {
+      rateLimit: {
+        max: 5,
+        timeWindow: "1 minute",
+        keyGenerator: (req: { ip: string }) => req.ip,
+      },
+    },
+  };
+
   // Register a new merchant
-  app.post("/register", async (request, reply) => {
+  app.post("/register", authRateLimit, async (request, reply) => {
     const parsed = registerSchema.safeParse(request.body);
     if (!parsed.success) {
       return reply.status(400).send({
@@ -154,7 +165,7 @@ export async function authRoutes(app: FastifyInstance) {
   });
 
   // Login with email + password
-  app.post("/login", async (request, reply) => {
+  app.post("/login", authRateLimit, async (request, reply) => {
     const parsed = loginSchema.safeParse(request.body);
     if (!parsed.success) {
       return reply.status(400).send({
