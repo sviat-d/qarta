@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { nanoid } from "nanoid";
 import { eq } from "drizzle-orm";
-import { STRIPE_EVENTS_OF_INTEREST, DISPUTE_FEE_CENTS } from "@qarta/shared";
+import { STRIPE_EVENTS_OF_INTEREST } from "@qarta/shared";
 import type { Alert, Policy, PolicyCondition, PolicyAction, SafetyRails } from "@qarta/shared";
 import {
   parseEarlyFraudWarning,
@@ -14,6 +14,7 @@ import { executeRefund } from "../services/refund-executor.js";
 import { db, schema } from "../db/index.js";
 import { config } from "../config.js";
 import { sendNotification } from "../services/notifier.js";
+import { enqueueWebhook } from "../services/webhook-queue.js";
 
 export async function webhookRoutes(app: FastifyInstance) {
   // Register raw body parser for signature verification
@@ -70,140 +71,48 @@ export async function webhookRoutes(app: FastifyInstance) {
       return reply.status(200).send({ received: true, processed: false });
     }
 
-    // 2. Idempotency check — skip if already processed
+    // 2. Idempotency check — skip if already successfully processed
     const existing = await db.query.webhookEvents.findFirst({
       where: eq(schema.webhookEvents.stripeEventId, event.id),
     });
-    if (existing) {
+    if (existing?.processedAt) {
       app.log.info({ eventId: event.id }, "Duplicate webhook event, skipping");
       return reply.status(200).send({ received: true, processed: false, duplicate: true });
     }
 
-    // 3. Store raw event
-    const webhookEventId = `whe_${nanoid()}`;
-    await db.insert(schema.webhookEvents).values({
-      id: webhookEventId,
-      stripeEventId: event.id,
-      type: event.type,
-      payload: event.data.object,
-    });
-
-    // 4. Resolve merchant from connected account
-    let merchantId: string | null = null;
-    let stripeSecretKey = config.STRIPE_SECRET_KEY;
-
-    if (event.account) {
-      const connection = await db.query.stripeConnections.findFirst({
-        where: eq(schema.stripeConnections.stripeAccountId, event.account),
+    // 3. Store raw event (or reuse existing if retrying)
+    let webhookEventId: string;
+    if (existing) {
+      webhookEventId = existing.id;
+      app.log.info({ eventId: event.id }, "Retrying previously failed webhook event");
+    } else {
+      webhookEventId = `whe_${nanoid()}`;
+      await db.insert(schema.webhookEvents).values({
+        id: webhookEventId,
+        stripeEventId: event.id,
+        type: event.type,
+        payload: event.data.object,
       });
-      if (connection) {
-        merchantId = connection.merchantId;
-        stripeSecretKey = connection.accessToken;
-      }
     }
 
-    // Fallback: use the first merchant if only one exists (dev convenience)
-    if (!merchantId) {
-      const firstMerchant = await db.query.merchants.findFirst();
-      merchantId = firstMerchant?.id ?? null;
-    }
-
-    if (!merchantId) {
-      app.log.warn({ eventId: event.id }, "No merchant found for webhook event");
-      await db
-        .update(schema.webhookEvents)
-        .set({ processedAt: new Date() })
-        .where(eq(schema.webhookEvents.id, webhookEventId));
-      return reply.status(200).send({ received: true, processed: false, reason: "no_merchant" });
-    }
-
+    // 4. Enqueue for async processing via BullMQ
     try {
-      switch (event.type) {
-        case "radar.early_fraud_warning.created": {
-          const efw = event.data.object as {
-            id: string;
-            actionable: boolean;
-            charge: string;
-            payment_intent?: string;
-            created: number;
-          };
-
-          // Look up charge for amount/currency/customer
-          const charge = await getChargeDetails(efw.charge, stripeSecretKey, event.account);
-          const parsed = parseEarlyFraudWarning(
-            efw,
-            charge?.amount ?? 0,
-            charge?.currency ?? "USD",
-          );
-
-          await processAlert(app, merchantId, parsed, charge, stripeSecretKey, event.account);
-          break;
-        }
-
-        case "charge.dispute.created": {
-          const dispute = event.data.object as {
-            id: string;
-            charge: string;
-            payment_intent?: string;
-            amount: number;
-            currency: string;
-            reason: string;
-            status: string;
-          };
-
-          const parsed = parseDispute(dispute);
-
-          // Get customer details from charge
-          const charge = await getChargeDetails(dispute.charge, stripeSecretKey, event.account);
-
-          await processAlert(app, merchantId, parsed, charge, stripeSecretKey, event.account);
-          break;
-        }
-
-        case "charge.dispute.updated":
-        case "charge.dispute.closed": {
-          const dispute = event.data.object as {
-            id: string;
-            status: string;
-          };
-
-          // Update the corresponding alert status
-          const alert = await db.query.alerts.findFirst({
-            where: eq(schema.alerts.stripeDisputeId, dispute.id),
-          });
-
-          if (alert) {
-            const newStatus = dispute.status === "won" ? "dismissed" as const : "expired" as const;
-            await db
-              .update(schema.alerts)
-              .set({ status: newStatus, updatedAt: new Date() })
-              .where(eq(schema.alerts.id, alert.id));
-
-            await writeAuditLog(merchantId, alert.id, undefined, "system", `dispute_${dispute.status}`, {
-              stripeDisputeId: dispute.id,
-              disputeStatus: dispute.status,
-            });
-          }
-          break;
-        }
-
-        case "charge.refunded": {
-          // Track external refunds for outcome metrics
-          app.log.info({ type: event.type }, "External refund tracked");
-          break;
-        }
-      }
+      await enqueueWebhook({
+        webhookEventId,
+        stripeEventId: event.id,
+        eventType: event.type,
+        payload: event.data.object,
+        account: event.account,
+        isConnect: false,
+      });
+      app.log.info({ eventId: event.id }, "Webhook enqueued for processing");
     } catch (err) {
-      app.log.error({ err, eventType: event.type }, "Error processing webhook");
+      // Queue unavailable — fall back to sync processing
+      app.log.warn({ err }, "Queue unavailable, processing webhook synchronously");
+      await processWebhookSync(app, webhookEventId, event, false);
     }
 
-    // Mark event as processed
-    await db
-      .update(schema.webhookEvents)
-      .set({ processedAt: new Date() })
-      .where(eq(schema.webhookEvents.id, webhookEventId));
-
-    return reply.status(200).send({ received: true, processed: true });
+    return reply.status(200).send({ received: true, queued: true });
   });
 
   // ── Connect webhook endpoint (for connected Stripe accounts) ──
@@ -249,136 +158,126 @@ export async function webhookRoutes(app: FastifyInstance) {
       return reply.status(200).send({ received: true, processed: false });
     }
 
-    // Idempotency check
+    // Idempotency check — skip if already successfully processed
     const existing = await db.query.webhookEvents.findFirst({
       where: eq(schema.webhookEvents.stripeEventId, event.id),
     });
-    if (existing) {
+    if (existing?.processedAt) {
       app.log.info({ eventId: event.id }, "Duplicate webhook event, skipping");
       return reply.status(200).send({ received: true, processed: false, duplicate: true });
     }
 
-    // Store raw event
-    const webhookEventId = `whe_${nanoid()}`;
-    await db.insert(schema.webhookEvents).values({
-      id: webhookEventId,
-      stripeEventId: event.id,
-      type: event.type,
-      payload: event.data.object,
-    });
-
-    // Resolve merchant from connected account
-    let merchantId: string | null = null;
-    let stripeSecretKey: string | undefined;
-
-    if (event.account) {
-      const connection = await db.query.stripeConnections.findFirst({
-        where: eq(schema.stripeConnections.stripeAccountId, event.account),
+    // Store raw event (or reuse existing if retrying)
+    let webhookEventId: string;
+    if (existing) {
+      webhookEventId = existing.id;
+      app.log.info({ eventId: event.id }, "Retrying previously failed Connect webhook event");
+    } else {
+      webhookEventId = `whe_${nanoid()}`;
+      await db.insert(schema.webhookEvents).values({
+        id: webhookEventId,
+        stripeEventId: event.id,
+        type: event.type,
+        payload: event.data.object,
       });
-      if (connection) {
-        merchantId = connection.merchantId;
-        stripeSecretKey = connection.accessToken;
-      }
     }
 
-    if (!merchantId) {
-      app.log.warn({ eventId: event.id, account: event.account }, "No merchant found for Connect webhook event");
-      await db
-        .update(schema.webhookEvents)
-        .set({ processedAt: new Date() })
-        .where(eq(schema.webhookEvents.id, webhookEventId));
-      return reply.status(200).send({ received: true, processed: false, reason: "no_merchant" });
-    }
-
+    // Enqueue for async processing via BullMQ
     try {
-      switch (event.type) {
-        case "radar.early_fraud_warning.created": {
-          const efw = event.data.object as {
-            id: string;
-            actionable: boolean;
-            charge: string;
-            payment_intent?: string;
-            created: number;
-          };
-
-          const charge = await getChargeDetails(efw.charge, stripeSecretKey, event.account);
-          const parsed = parseEarlyFraudWarning(
-            efw,
-            charge?.amount ?? 0,
-            charge?.currency ?? "USD",
-          );
-
-          await processAlert(app, merchantId, parsed, charge, stripeSecretKey, event.account);
-          break;
-        }
-
-        case "charge.dispute.created": {
-          const dispute = event.data.object as {
-            id: string;
-            charge: string;
-            payment_intent?: string;
-            amount: number;
-            currency: string;
-            reason: string;
-            status: string;
-          };
-
-          const parsed = parseDispute(dispute);
-          const charge = await getChargeDetails(dispute.charge, stripeSecretKey, event.account);
-
-          await processAlert(app, merchantId, parsed, charge, stripeSecretKey, event.account);
-          break;
-        }
-
-        case "charge.dispute.updated":
-        case "charge.dispute.closed": {
-          const dispute = event.data.object as {
-            id: string;
-            status: string;
-          };
-
-          const alert = await db.query.alerts.findFirst({
-            where: eq(schema.alerts.stripeDisputeId, dispute.id),
-          });
-
-          if (alert) {
-            const newStatus = dispute.status === "won" ? "dismissed" as const : "expired" as const;
-            await db
-              .update(schema.alerts)
-              .set({ status: newStatus, updatedAt: new Date() })
-              .where(eq(schema.alerts.id, alert.id));
-
-            await writeAuditLog(merchantId, alert.id, undefined, "system", `dispute_${dispute.status}`, {
-              stripeDisputeId: dispute.id,
-              disputeStatus: dispute.status,
-            });
-          }
-          break;
-        }
-
-        case "charge.refunded": {
-          app.log.info({ type: event.type, account: event.account }, "External refund tracked (Connect)");
-          break;
-        }
-      }
+      await enqueueWebhook({
+        webhookEventId,
+        stripeEventId: event.id,
+        eventType: event.type,
+        payload: event.data.object,
+        account: event.account,
+        isConnect: true,
+      });
+      app.log.info({ eventId: event.id }, "Connect webhook enqueued for processing");
     } catch (err) {
-      app.log.error({ err, eventType: event.type }, "Error processing Connect webhook");
+      app.log.warn({ err }, "Queue unavailable, processing Connect webhook synchronously");
+      await processWebhookSync(app, webhookEventId, event, true);
     }
 
-    await db
-      .update(schema.webhookEvents)
-      .set({ processedAt: new Date() })
-      .where(eq(schema.webhookEvents.id, webhookEventId));
-
-    return reply.status(200).send({ received: true, processed: true });
+    return reply.status(200).send({ received: true, queued: true });
   });
 }
 
 /**
- * Core pipeline: Create Alert → Evaluate Policy → Execute Action → Audit Log
+ * Synchronous fallback when BullMQ is unavailable.
  */
-async function processAlert(
+async function processWebhookSync(
   app: FastifyInstance,
+  webhookEventId: string,
+  event: { id: string; type: string; account?: string; data: { object: Record<string, unknown> } },
+  isConnect: boolean,
+) {
+  let merchantId: string | null = null;
+  let stripeSecretKey = isConnect ? undefined : config.STRIPE_SECRET_KEY;
+
+  if (event.account) {
+    const connection = await db.query.stripeConnections.findFirst({
+      where: eq(schema.stripeConnections.stripeAccountId, event.account),
+    });
+    if (connection) {
+      merchantId = connection.merchantId;
+      stripeSecretKey = connection.accessToken;
+    }
+  }
+
+  if (!merchantId) {
+    const firstMerchant = await db.query.merchants.findFirst();
+    merchantId = firstMerchant?.id ?? null;
+  }
+
+  if (!merchantId) {
+    app.log.warn({ eventId: event.id }, "No merchant found for webhook event");
+    await db.update(schema.webhookEvents).set({ processedAt: new Date() }).where(eq(schema.webhookEvents.id, webhookEventId));
+    return;
+  }
+
+  try {
+    switch (event.type) {
+      case "radar.early_fraud_warning.created": {
+        const efw = event.data.object as { id: string; actionable: boolean; charge: string; payment_intent?: string; created: number };
+        const charge = await getChargeDetails(efw.charge, stripeSecretKey, event.account);
+        const parsed = parseEarlyFraudWarning(efw, charge?.amount ?? 0, charge?.currency ?? "USD");
+        await processAlertPipeline(merchantId, parsed, charge, stripeSecretKey, event.account);
+        break;
+      }
+      case "charge.dispute.created": {
+        const dispute = event.data.object as { id: string; charge: string; payment_intent?: string; amount: number; currency: string; reason: string; status: string };
+        const parsed = parseDispute(dispute);
+        const charge = await getChargeDetails(dispute.charge, stripeSecretKey, event.account);
+        await processAlertPipeline(merchantId, parsed, charge, stripeSecretKey, event.account);
+        break;
+      }
+      case "charge.dispute.updated":
+      case "charge.dispute.closed": {
+        const dispute = event.data.object as { id: string; status: string };
+        const alert = await db.query.alerts.findFirst({ where: eq(schema.alerts.stripeDisputeId, dispute.id) });
+        if (alert) {
+          const newStatus = dispute.status === "won" ? "dismissed" as const : "expired" as const;
+          await db.update(schema.alerts).set({ status: newStatus, updatedAt: new Date() }).where(eq(schema.alerts.id, alert.id));
+          await writeAuditLog(merchantId, alert.id, undefined, "system", `dispute_${dispute.status}`, { stripeDisputeId: dispute.id, disputeStatus: dispute.status });
+        }
+        break;
+      }
+      case "charge.refunded":
+        app.log.info({ type: event.type }, "External refund tracked");
+        break;
+    }
+
+    await db.update(schema.webhookEvents).set({ processedAt: new Date() }).where(eq(schema.webhookEvents.id, webhookEventId));
+  } catch (err) {
+    app.log.error({ err, eventType: event.type }, "Error processing webhook synchronously");
+  }
+}
+
+/**
+ * Core pipeline: Create Alert → Evaluate Policy → Execute Action → Audit Log.
+ * Exported so the BullMQ worker can call it.
+ */
+export async function processAlertPipeline(
   merchantId: string,
   parsed: ParsedAlert,
   chargeDetails: Awaited<ReturnType<typeof getChargeDetails>>,
@@ -413,7 +312,7 @@ async function processAlert(
     currency: parsed.currency,
   });
 
-  app.log.info({ alertId, source: parsed.source }, "Alert created");
+  console.log("Alert created", { alertId, source: parsed.source });
 
   // Notify: new alert
   sendNotification({
@@ -477,7 +376,7 @@ async function processAlert(
 
   const decision = evaluateAlert(alertForEngine, domainPolicies);
 
-  app.log.info({ alertId, matched: decision.matched, reason: decision.reason }, "Policy evaluation complete");
+  console.log("Policy evaluation complete", { alertId, matched: decision.matched, reason: decision.reason });
 
   await writeAuditLog(merchantId, alertId, undefined, "system", "policy_evaluated", {
     matched: decision.matched,
@@ -543,7 +442,7 @@ async function processAlert(
           policyId: policy.id,
         });
 
-        app.log.warn({ alertId, reason: safetyCheck.reason }, "Safety rails blocked auto-refund");
+        console.warn("Safety rails blocked auto-refund", { alertId, reason: safetyCheck.reason });
         return;
       }
 
@@ -588,7 +487,7 @@ async function processAlert(
           policyId: policy.id,
         });
 
-        app.log.info({ alertId, actionId, refundId: result.stripeRefundId }, "Auto-refund executed");
+        console.log("Auto-refund executed", { alertId, actionId, refundId: result.stripeRefundId });
 
         sendNotification({
           type: "auto_refund",
@@ -618,7 +517,7 @@ async function processAlert(
           policyId: policy.id,
         });
 
-        app.log.error({ alertId, reason: result.failureReason }, "Auto-refund failed, escalated");
+        console.error("Auto-refund failed, escalated", { alertId, reason: result.failureReason });
       }
       break;
     }

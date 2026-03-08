@@ -253,6 +253,39 @@ export const notificationSettings = pgTable(
   (table) => [index("notif_merchant_idx").on(table.merchantId)],
 );
 
+export const subscriptionStatusEnum = pgEnum("subscription_status", [
+  "active",
+  "past_due",
+  "canceled",
+  "trialing",
+]);
+
+export const subscriptions = pgTable(
+  "subscriptions",
+  {
+    id: text("id").primaryKey(),
+    merchantId: text("merchant_id")
+      .references(() => merchants.id)
+      .notNull()
+      .unique(),
+    plan: text("plan").notNull().default("free"), // free, pro, growth
+    status: subscriptionStatusEnum("status").default("active").notNull(),
+    stripeCustomerId: text("stripe_customer_id"),
+    stripeSubscriptionId: text("stripe_subscription_id"),
+    stripePriceId: text("stripe_price_id"),
+    currentPeriodStart: timestamp("current_period_start"),
+    currentPeriodEnd: timestamp("current_period_end"),
+    cancelAtPeriodEnd: boolean("cancel_at_period_end").default(false).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("sub_merchant_idx").on(table.merchantId),
+    index("sub_stripe_customer_idx").on(table.stripeCustomerId),
+    index("sub_stripe_sub_idx").on(table.stripeSubscriptionId),
+  ],
+);
+
 export const webhookEvents = pgTable(
   "webhook_events",
   {

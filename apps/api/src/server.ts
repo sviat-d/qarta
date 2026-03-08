@@ -16,6 +16,10 @@ import { connectRoutes } from "./routes/connect.js";
 import { authRoutes } from "./routes/auth.js";
 import { setupRoutes } from "./routes/setup.js";
 import { notificationRoutes } from "./routes/notifications.js";
+import { billingRoutes } from "./routes/billing.js";
+import { startWebhookWorker, closeWebhookQueue } from "./services/webhook-queue.js";
+import { processWebhookJob } from "./services/webhook-worker.js";
+import { startScheduler, closeScheduler } from "./services/scheduler.js";
 
 async function buildServer() {
   const app = Fastify({
@@ -65,6 +69,7 @@ async function buildServer() {
   await app.register(connectRoutes, { prefix: "/v1/connect" });
   await app.register(authRoutes, { prefix: "/v1/auth" });
   await app.register(notificationRoutes, { prefix: "/v1/notifications" });
+  await app.register(billingRoutes, { prefix: "/v1/billing" });
   await app.register(setupRoutes, { prefix: "/setup" });
 
   return app;
@@ -95,6 +100,26 @@ async function start() {
     app.log.error(err);
     process.exit(1);
   }
+
+  // Start BullMQ webhook processing worker + scheduler
+  try {
+    startWebhookWorker(processWebhookJob);
+    await startScheduler();
+    app.log.info("BullMQ workers started (webhook processing + scheduler)");
+  } catch (err) {
+    app.log.warn({ err }, "Could not start BullMQ workers — webhooks will process synchronously, no scheduled jobs");
+  }
+
+  // Graceful shutdown
+  const shutdown = async () => {
+    app.log.info("Shutting down...");
+    await closeScheduler();
+    await closeWebhookQueue();
+    await app.close();
+    process.exit(0);
+  };
+  process.on("SIGTERM", shutdown);
+  process.on("SIGINT", shutdown);
 }
 
 start();

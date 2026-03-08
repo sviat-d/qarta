@@ -305,3 +305,29 @@ export async function updateNotificationSettings(
 export async function testSlackWebhook(): Promise<ApiResponse<{ sent: boolean }>> {
   return apiFetch("/v1/notifications/test-slack", { method: "POST" });
 }
+
+// ─── Billing ───
+
+export interface BillingData {
+  plan: string;
+  planDetails: { id: string; name: string; alertsPerMonth: number; priceMonthly: number; perDeflection: number };
+  status: string;
+  stripeSubscriptionId: string | null;
+  currentPeriodEnd: string | null;
+  cancelAtPeriodEnd: boolean;
+}
+
+export async function fetchBilling(): Promise<ApiResponse<BillingData>> {
+  return apiFetch("/v1/billing");
+}
+
+export async function createCheckout(plan: "pro" | "growth"): Promise<ApiResponse<{ url: string; sessionId: string }>> {
+  return apiFetch("/v1/billing/checkout", {
+    method: "POST",
+    body: JSON.stringify({ plan }),
+  });
+}
+
+export async function createBillingPortal(): Promise<ApiResponse<{ url: string }>> {
+  return apiFetch("/v1/billing/portal", { method: "POST" });
+}

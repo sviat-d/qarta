@@ -217,8 +217,8 @@ export function getDemoResponse(path: string): unknown {
     return {
       data: {
         id: "m_demo",
-        name: "Acme SaaS",
-        email: "demo@acme-saas.com",
+        name: "Demo Company",
+        email: "demo@qarta.eu",
         stripeAccountId: "acct_1DemoQarta",
       },
     };
@@ -229,12 +229,25 @@ export function getDemoResponse(path: string): unknown {
       data: {
         slackWebhookUrl: null,
         slackEnabled: false,
-        emailAddress: "demo@acme-saas.com",
+        emailAddress: "demo@qarta.eu",
         emailEnabled: true,
         notifyNewAlert: true,
         notifyAutoRefund: true,
         notifyEscalated: true,
         notifyDailySummary: true,
+      },
+    };
+  }
+
+  if (path === "/v1/billing") {
+    return {
+      data: {
+        plan: "free",
+        planDetails: { id: "free", name: "Free", alertsPerMonth: 10, priceMonthly: 0, perDeflection: 0 },
+        status: "active",
+        stripeSubscriptionId: null,
+        currentPeriodEnd: null,
+        cancelAtPeriodEnd: false,
       },
     };
   }

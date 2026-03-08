@@ -22,6 +22,7 @@
     "@fastify/rate-limit": "^9.0.0",
     "@qarta/shared": "*",
     "@sentry/node": "^10.42.0",
+    "bullmq": "^5.70.4",
     "dotenv": "^16.4.0",
     "drizzle-orm": "^0.36.0",
     "fastify": "^4.28.0",

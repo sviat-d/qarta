@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
-import { fetchMe } from "@/lib/api";
+import { fetchMe, fetchBilling } from "@/lib/api";
 import { useApi } from "@/lib/use-api";
 
 const navItems = [
@@ -51,10 +51,12 @@ export function Sidebar() {
   const pathname = usePathname();
   const { isDemo, logout } = useAuth();
   const { data: meData } = useApi(() => fetchMe(), []);
+  const { data: billingData } = useApi(() => fetchBilling(), []);
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const merchant = meData?.data;
   const name = merchant?.name ?? "My Company";
+  const planName = billingData?.data?.planDetails?.name ?? "Free";
   const email = merchant?.email ?? "";
   const initial = name.charAt(0).toUpperCase();
 
@@ -67,7 +69,7 @@ export function Sidebar() {
         </div>
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold text-white">{name}</p>
-          <p className="truncate text-xs text-gray-400">Free Plan</p>
+          <p className="truncate text-xs text-gray-400">{planName} Plan</p>
         </div>
         {/* Close button — mobile only */}
         <button
