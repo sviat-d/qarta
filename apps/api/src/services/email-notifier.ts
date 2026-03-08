@@ -1,5 +1,6 @@
 import { eq } from "drizzle-orm";
 import { db, schema } from "../db/index.js";
+import { config } from "../config.js";
 
 interface EmailNotificationEvent {
   type: "new_alert" | "auto_refund" | "escalated";
@@ -44,9 +45,9 @@ export async function sendEmailNotification(
 
     const { subject, html } = buildEmailContent(event);
 
-    const apiKey = process.env.EMAIL_API_KEY;
-    const provider = process.env.EMAIL_PROVIDER ?? "resend";
-    const fromAddress = process.env.EMAIL_FROM ?? "alerts@qarta.eu";
+    const apiKey = config.EMAIL_API_KEY;
+    const provider = config.EMAIL_PROVIDER;
+    const fromAddress = config.EMAIL_FROM;
 
     if (!apiKey) {
       console.warn("EMAIL_API_KEY not set, skipping email notification");
@@ -150,9 +151,9 @@ export async function sendPasswordResetEmail(
   resetUrl: string,
 ): Promise<void> {
   try {
-    const apiKey = process.env.EMAIL_API_KEY;
-    const provider = process.env.EMAIL_PROVIDER ?? "resend";
-    const fromAddress = process.env.EMAIL_FROM ?? "alerts@qarta.eu";
+    const apiKey = config.EMAIL_API_KEY;
+    const provider = config.EMAIL_PROVIDER;
+    const fromAddress = config.EMAIL_FROM;
 
     if (!apiKey) {
       console.error("[email] EMAIL_API_KEY not set — cannot send password reset email!");
