@@ -61,10 +61,11 @@ export async function connectRoutes(app: FastifyInstance) {
         data: { url: accountLink.url },
       });
     } catch (err) {
-      app.log.error({ err }, "Failed to create Stripe Account Link");
+      const stripeMessage = err instanceof Error ? err.message : "Unknown error";
+      app.log.error({ err, stripeMessage }, "Failed to create Stripe Account Link");
       return reply.status(500).send({
         success: false,
-        error: { code: "STRIPE_ERROR", message: "Failed to start Stripe onboarding" },
+        error: { code: "STRIPE_ERROR", message: stripeMessage },
       });
     }
   });
