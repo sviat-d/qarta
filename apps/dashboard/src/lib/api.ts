@@ -201,6 +201,43 @@ export async function loginMerchant(body: {
   return data;
 }
 
+export async function forgotPassword(body: {
+  email: string;
+}): Promise<ApiResponse<{ message: string }>> {
+  const response = await fetch(`${API_BASE}/v1/auth/forgot-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new ApiError(
+      data?.error?.code ?? "UNKNOWN_ERROR",
+      data?.error?.message ?? "Request failed",
+    );
+  }
+  return data;
+}
+
+export async function resetPassword(body: {
+  token: string;
+  password: string;
+}): Promise<ApiResponse<{ message: string }>> {
+  const response = await fetch(`${API_BASE}/v1/auth/reset-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new ApiError(
+      data?.error?.code ?? "UNKNOWN_ERROR",
+      data?.error?.message ?? "Password reset failed",
+    );
+  }
+  return data;
+}
+
 export async function fetchMe(): Promise<
   ApiResponse<{ id: string; name: string; email: string; stripeAccountId: string | null }>
 > {
@@ -267,4 +304,30 @@ export async function updateNotificationSettings(
 
 export async function testSlackWebhook(): Promise<ApiResponse<{ sent: boolean }>> {
   return apiFetch("/v1/notifications/test-slack", { method: "POST" });
+}
+
+// ─── Billing ───
+
+export interface BillingData {
+  plan: string;
+  planDetails: { id: string; name: string; alertsPerMonth: number; priceMonthly: number; perDeflection: number };
+  status: string;
+  stripeSubscriptionId: string | null;
+  currentPeriodEnd: string | null;
+  cancelAtPeriodEnd: boolean;
+}
+
+export async function fetchBilling(): Promise<ApiResponse<BillingData>> {
+  return apiFetch("/v1/billing");
+}
+
+export async function createCheckout(plan: "pro" | "growth"): Promise<ApiResponse<{ url: string; sessionId: string }>> {
+  return apiFetch("/v1/billing/checkout", {
+    method: "POST",
+    body: JSON.stringify({ plan }),
+  });
+}
+
+export async function createBillingPortal(): Promise<ApiResponse<{ url: string }>> {
+  return apiFetch("/v1/billing/portal", { method: "POST" });
 }

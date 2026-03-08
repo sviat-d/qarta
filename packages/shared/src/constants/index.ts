@@ -92,7 +92,38 @@ export const STRIPE_EVENTS_OF_INTEREST = [
   "charge.dispute.updated",
   "charge.dispute.closed",
   "charge.refunded",
+  "checkout.session.completed",
+  "customer.subscription.updated",
+  "customer.subscription.deleted",
 ] as const;
+
+// --- Billing Plans ---
+
+export const BILLING_PLANS = {
+  free: {
+    id: "free",
+    name: "Free",
+    alertsPerMonth: 10,
+    priceMonthly: 0,
+    perDeflection: 0,
+  },
+  pro: {
+    id: "pro",
+    name: "Pro",
+    alertsPerMonth: -1, // unlimited
+    priceMonthly: 19900, // $199 in cents
+    perDeflection: 1500, // $15 in cents
+  },
+  growth: {
+    id: "growth",
+    name: "Growth",
+    alertsPerMonth: -1,
+    priceMonthly: 39900, // $399 in cents
+    perDeflection: 1000, // $10 in cents (volume discount)
+  },
+} as const;
+
+export type BillingPlanId = keyof typeof BILLING_PLANS;
 
 // --- HTTP Status Codes ---
 

@@ -1,4 +1,5 @@
 import Stripe from "stripe";
+import { withTokenRefresh } from "./stripe.js";
 
 export interface RefundRequest {
   stripeChargeId: string;
@@ -16,14 +17,16 @@ export interface RefundResult {
  * Execute a refund via Stripe Refunds API.
  * This is the core action that prevents a dispute from becoming a chargeback.
  * Every refund must be logged in the audit trail.
+ * Supports automatic token refresh for connected accounts.
  */
 export async function executeRefund(
   stripeSecretKey: string,
   request: RefundRequest,
+  stripeAccountId?: string,
 ): Promise<RefundResult> {
-  const stripe = new Stripe(stripeSecretKey);
+  const doRefund = async (token: string) => {
+    const stripe = new Stripe(token);
 
-  try {
     const refund = await stripe.refunds.create({
       charge: request.stripeChargeId,
       amount: request.amount,
@@ -38,6 +41,13 @@ export async function executeRefund(
       success: refund.status === "succeeded" || refund.status === "pending",
       stripeRefundId: refund.id,
     };
+  };
+
+  try {
+    if (stripeAccountId) {
+      return await withTokenRefresh(stripeAccountId, stripeSecretKey, doRefund);
+    }
+    return await doRefund(stripeSecretKey);
   } catch (error) {
     const message =
       error instanceof Stripe.errors.StripeError

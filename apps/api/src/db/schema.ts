@@ -64,6 +64,8 @@ export const merchants = pgTable(
     email: text("email").notNull().unique(),
     passwordHash: text("password_hash"),
     apiKeyHash: text("api_key_hash").notNull(),
+    passwordResetToken: text("password_reset_token"),
+    passwordResetExpiresAt: timestamp("password_reset_expires_at"),
     stripeAccountId: text("stripe_account_id"),
     onboardedAt: timestamp("onboarded_at"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -249,6 +251,39 @@ export const notificationSettings = pgTable(
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
   (table) => [index("notif_merchant_idx").on(table.merchantId)],
+);
+
+export const subscriptionStatusEnum = pgEnum("subscription_status", [
+  "active",
+  "past_due",
+  "canceled",
+  "trialing",
+]);
+
+export const subscriptions = pgTable(
+  "subscriptions",
+  {
+    id: text("id").primaryKey(),
+    merchantId: text("merchant_id")
+      .references(() => merchants.id)
+      .notNull()
+      .unique(),
+    plan: text("plan").notNull().default("free"), // free, pro, growth
+    status: subscriptionStatusEnum("status").default("active").notNull(),
+    stripeCustomerId: text("stripe_customer_id"),
+    stripeSubscriptionId: text("stripe_subscription_id"),
+    stripePriceId: text("stripe_price_id"),
+    currentPeriodStart: timestamp("current_period_start"),
+    currentPeriodEnd: timestamp("current_period_end"),
+    cancelAtPeriodEnd: boolean("cancel_at_period_end").default(false).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("sub_merchant_idx").on(table.merchantId),
+    index("sub_stripe_customer_idx").on(table.stripeCustomerId),
+    index("sub_stripe_sub_idx").on(table.stripeSubscriptionId),
+  ],
 );
 
 export const webhookEvents = pgTable(

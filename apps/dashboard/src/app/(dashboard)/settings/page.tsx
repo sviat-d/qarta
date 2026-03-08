@@ -8,6 +8,9 @@ import {
   fetchNotificationSettings,
   updateNotificationSettings,
   testSlackWebhook,
+  fetchBilling,
+  createCheckout,
+  createBillingPortal,
   type NotificationSettings,
 } from "@/lib/api";
 import { useApi } from "@/lib/use-api";
@@ -15,34 +18,38 @@ import { useAuth } from "@/lib/auth-context";
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<
-    "stripe" | "notifications" | "api-keys"
+    "stripe" | "billing" | "notifications" | "api-keys"
   >("stripe");
+
+  const tabs = [
+    { id: "stripe" as const, label: "Stripe Connection" },
+    { id: "billing" as const, label: "Billing" },
+    { id: "notifications" as const, label: "Notifications" },
+    { id: "api-keys" as const, label: "API Keys" },
+  ];
 
   return (
     <>
       <TopBar title="Settings" />
       <div className="p-8">
         <div className="mb-8 flex w-fit gap-1 rounded-lg border border-gray-200 bg-white p-1">
-          {(["stripe", "notifications", "api-keys"] as const).map((tab) => (
+          {tabs.map((tab) => (
             <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
               className={`rounded-md px-4 py-2 text-sm font-medium transition-colors ${
-                activeTab === tab
+                activeTab === tab.id
                   ? "bg-brand-600 text-white"
                   : "text-gray-600 hover:bg-gray-100"
               }`}
             >
-              {tab === "stripe"
-                ? "Stripe Connection"
-                : tab === "notifications"
-                  ? "Notifications"
-                  : "API Keys"}
+              {tab.label}
             </button>
           ))}
         </div>
 
         {activeTab === "stripe" && <StripeTab />}
+        {activeTab === "billing" && <BillingTab />}
         {activeTab === "notifications" && <NotificationsTab />}
         {activeTab === "api-keys" && <ApiKeysTab />}
       </div>
@@ -349,6 +356,121 @@ function NotificationsTab() {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function BillingTab() {
+  const { isDemo } = useAuth();
+  const { data, isLoading } = useApi(() => fetchBilling(), []);
+  const [loading, setLoading] = useState<string | null>(null);
+
+  const billing = data?.data;
+  const planName = billing?.planDetails?.name ?? "Free";
+  const priceFormatted = billing?.planDetails?.priceMonthly
+    ? `$${(billing.planDetails.priceMonthly / 100).toFixed(0)}/mo`
+    : "Free";
+
+  const handleUpgrade = async (plan: "pro" | "growth") => {
+    if (isDemo) return;
+    setLoading(plan);
+    try {
+      const result = await createCheckout(plan);
+      if (result.data?.url) {
+        window.location.href = result.data.url;
+      }
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  const handleManage = async () => {
+    if (isDemo) return;
+    setLoading("portal");
+    try {
+      const result = await createBillingPortal();
+      if (result.data?.url) {
+        window.location.href = result.data.url;
+      }
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <div className="h-6 w-6 animate-spin rounded-full border-2 border-brand-600 border-t-transparent" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Current plan */}
+      <div className="rounded-xl border border-gray-200 bg-white p-6">
+        <div className="flex items-start justify-between">
+          <div>
+            <h3 className="font-medium text-gray-900">Current Plan</h3>
+            <p className="mt-1 text-sm text-gray-500">
+              You are on the <span className="font-semibold text-gray-900">{planName}</span> plan ({priceFormatted})
+            </p>
+            {billing?.cancelAtPeriodEnd && (
+              <p className="mt-1 text-sm text-amber-600">
+                Cancels at end of period ({billing.currentPeriodEnd ? new Date(billing.currentPeriodEnd).toLocaleDateString() : ""})
+              </p>
+            )}
+          </div>
+          {billing?.stripeSubscriptionId && (
+            <button
+              onClick={handleManage}
+              disabled={loading === "portal" || isDemo}
+              className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+            >
+              {loading === "portal" ? "Loading..." : "Manage Subscription"}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Upgrade options */}
+      {billing?.plan === "free" && (
+        <div className="grid gap-4 md:grid-cols-2">
+          {[
+            { plan: "pro" as const, name: "Pro", price: "$199/mo", desc: "Unlimited alerts + $15/deflection", features: ["Unlimited alerts", "Advanced policy engine", "Slack + email notifications", "Priority support"] },
+            { plan: "growth" as const, name: "Growth", price: "$399/mo", desc: "Volume discounts + $10/deflection", features: ["Everything in Pro", "Volume discounts", "Custom policy rules", "API access", "Dedicated support"] },
+          ].map((tier) => (
+            <div key={tier.plan} className="rounded-xl border border-gray-200 bg-white p-6">
+              <h4 className="text-lg font-semibold text-gray-900">{tier.name}</h4>
+              <p className="mt-1 text-2xl font-bold text-gray-900">{tier.price}</p>
+              <p className="mt-1 text-sm text-gray-500">{tier.desc}</p>
+              <ul className="mt-4 space-y-2">
+                {tier.features.map((f) => (
+                  <li key={f} className="flex items-center gap-2 text-sm text-gray-600">
+                    <svg className="h-4 w-4 text-green-500" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                    </svg>
+                    {f}
+                  </li>
+                ))}
+              </ul>
+              <button
+                onClick={() => handleUpgrade(tier.plan)}
+                disabled={loading === tier.plan || isDemo}
+                className="mt-6 w-full rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
+              >
+                {loading === tier.plan ? "Loading..." : `Upgrade to ${tier.name}`}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {isDemo && (
+        <div className="rounded-lg border border-brand-200 bg-brand-50 px-4 py-3 text-sm text-brand-700">
+          Billing is disabled in demo mode. Sign up to manage your subscription.
+        </div>
+      )}
     </div>
   );
 }

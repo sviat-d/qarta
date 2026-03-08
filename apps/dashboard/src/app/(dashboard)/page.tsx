@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { StatusBadge } from "@/components/status-badge";
-import { fetchOutcomes, fetchTimeseries, fetchAlerts } from "@/lib/api";
+import { fetchOutcomes, fetchTimeseries, fetchAlerts, fetchMe } from "@/lib/api";
 import { useApi } from "@/lib/use-api";
 import type { Alert, OutcomesTimeSeries } from "@qarta/shared";
 
@@ -262,10 +262,12 @@ export default function OverviewPage() {
     () => fetchAlerts({ page: 1, perPage: 8 }),
     [],
   );
+  const { data: meData } = useApi(() => fetchMe(), []);
 
   const metrics = outcomesData?.data;
   const chartData: OutcomesTimeSeries[] = timeseriesData?.data ?? [];
   const recentAlerts: Alert[] = alertsData?.data ?? [];
+  const merchantName = meData?.data?.name ?? "your dashboard";
 
   const hour = new Date().getHours();
   const greeting =
@@ -276,7 +278,7 @@ export default function OverviewPage() {
       {/* Header */}
       <div className="mb-8 flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">{greeting}, Acme SaaS</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{greeting}, {merchantName}</h1>
           <p className="mt-1 text-sm text-gray-500">
             Here&apos;s what&apos;s happening with your chargeback protection
           </p>
