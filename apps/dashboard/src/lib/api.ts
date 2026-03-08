@@ -272,8 +272,8 @@ export async function fetchStripeStatus(): Promise<
   return apiFetch("/v1/connect/stripe/status");
 }
 
-export async function initiateStripeConnect(): Promise<ApiResponse<{ url: string; state: string }>> {
-  return apiFetch("/v1/connect/stripe");
+export async function initiateStripeConnect(): Promise<ApiResponse<{ url: string }>> {
+  return apiFetch("/v1/connect/stripe/onboard", { method: "POST" });
 }
 
 // ─── Notifications ───

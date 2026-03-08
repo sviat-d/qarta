@@ -1,7 +1,6 @@
 import type { Job } from "bullmq";
 import { eq } from "drizzle-orm";
 import { db, schema } from "../db/index.js";
-import { config } from "../config.js";
 import type { WebhookJobData } from "./webhook-queue.js";
 import {
   parseEarlyFraudWarning,
@@ -19,15 +18,14 @@ export async function processWebhookJob(job: Job<WebhookJobData>): Promise<void>
 
   // Resolve merchant
   let merchantId: string | null = null;
-  let stripeSecretKey = config.STRIPE_SECRET_KEY;
+  const stripeAccountId = account;
 
-  if (account) {
+  if (stripeAccountId) {
     const connection = await db.query.stripeConnections.findFirst({
-      where: eq(schema.stripeConnections.stripeAccountId, account),
+      where: eq(schema.stripeConnections.stripeAccountId, stripeAccountId),
     });
     if (connection) {
       merchantId = connection.merchantId;
-      stripeSecretKey = connection.accessToken;
     }
   }
 
@@ -56,14 +54,14 @@ export async function processWebhookJob(job: Job<WebhookJobData>): Promise<void>
         created: number;
       };
 
-      const charge = await getChargeDetails(efw.charge, stripeSecretKey, account);
+      const charge = await getChargeDetails(efw.charge, stripeAccountId);
       const parsed = parseEarlyFraudWarning(
         efw,
         charge?.amount ?? 0,
         charge?.currency ?? "USD",
       );
 
-      await processAlertPipeline(merchantId, parsed, charge, stripeSecretKey, account);
+      await processAlertPipeline(merchantId, parsed, charge, stripeAccountId);
       break;
     }
 
@@ -79,9 +77,9 @@ export async function processWebhookJob(job: Job<WebhookJobData>): Promise<void>
       };
 
       const parsed = parseDispute(dispute);
-      const charge = await getChargeDetails(dispute.charge, stripeSecretKey, account);
+      const charge = await getChargeDetails(dispute.charge, stripeAccountId);
 
-      await processAlertPipeline(merchantId, parsed, charge, stripeSecretKey, account);
+      await processAlertPipeline(merchantId, parsed, charge, stripeAccountId);
       break;
     }
 

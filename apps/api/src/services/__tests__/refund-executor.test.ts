@@ -17,6 +17,10 @@ vi.mock("stripe", () => {
   return { default: MockStripe };
 });
 
+vi.mock("../../config.js", () => ({
+  config: { STRIPE_SECRET_KEY: "sk_test_xxx" },
+}));
+
 import { executeRefund } from "../refund-executor.js";
 
 describe("executeRefund", () => {
@@ -30,7 +34,7 @@ describe("executeRefund", () => {
       status: "succeeded",
     });
 
-    const result = await executeRefund("sk_test_xxx", {
+    const result = await executeRefund({
       stripeChargeId: "ch_abc",
       reason: "fraudulent",
     });
@@ -54,7 +58,7 @@ describe("executeRefund", () => {
       status: "pending",
     });
 
-    const result = await executeRefund("sk_test_xxx", {
+    const result = await executeRefund({
       stripeChargeId: "ch_def",
       amount: 2500,
       reason: "duplicate",
@@ -74,7 +78,7 @@ describe("executeRefund", () => {
       }),
     );
 
-    const result = await executeRefund("sk_test_xxx", {
+    const result = await executeRefund({
       stripeChargeId: "ch_already_refunded",
     });
 
@@ -88,7 +92,7 @@ describe("executeRefund", () => {
       status: "succeeded",
     });
 
-    await executeRefund("sk_test_xxx", {
+    await executeRefund({
       stripeChargeId: "ch_no_reason",
     });
 
@@ -107,7 +111,7 @@ describe("executeRefund", () => {
       status: "pending",
     });
 
-    const result = await executeRefund("sk_test_xxx", {
+    const result = await executeRefund({
       stripeChargeId: "ch_pending",
     });
 
