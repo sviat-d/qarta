@@ -393,11 +393,13 @@ function ConnectIntegrations({
   onToggle,
   onConnectStripe,
   stripeConnecting,
+  stripeError,
 }: {
   integrations: Integration[];
   onToggle: (id: string) => void;
   onConnectStripe: () => void;
   stripeConnecting: boolean;
+  stripeError: string | null;
 }) {
   const processors = integrations.filter((i) => i.category === "payment");
   const enrichment = integrations.filter((i) => i.category === "enrichment");
@@ -463,7 +465,11 @@ function ConnectIntegrations({
                 <span className="text-sm font-medium text-gray-700">
                   {integration.name}
                 </span>
-                {isStripe && stripeConnecting ? (
+                {isStripe && stripeError ? (
+                  <span className="text-xs font-medium text-red-600">
+                    {stripeError}
+                  </span>
+                ) : isStripe && stripeConnecting ? (
                   <span className="text-xs font-medium text-brand-600">
                     Redirecting...
                   </span>
@@ -791,6 +797,7 @@ export default function OnboardingPage() {
   };
 
   const [stripeConnecting, setStripeConnecting] = useState(false);
+  const [stripeError, setStripeError] = useState<string | null>(null);
   const [launching, setLaunching] = useState(false);
 
   const handleConnectStripe = async () => {
@@ -800,12 +807,17 @@ export default function OnboardingPage() {
       return;
     }
     setStripeConnecting(true);
+    setStripeError(null);
     try {
       const result = await initiateStripeConnect();
       if (result.data?.url) {
         window.location.href = result.data.url;
+      } else {
+        setStripeError("No redirect URL returned");
+        setStripeConnecting(false);
       }
-    } catch {
+    } catch (err) {
+      setStripeError(err instanceof Error ? err.message : "Failed to connect Stripe");
       setStripeConnecting(false);
     }
   };
@@ -900,6 +912,7 @@ export default function OnboardingPage() {
             onToggle={toggleIntegration}
             onConnectStripe={handleConnectStripe}
             stripeConnecting={stripeConnecting}
+            stripeError={stripeError}
           />
         )}
         {step === 3 && (
