@@ -11,10 +11,28 @@ import { db, schema } from "../db/index.js";
  * Flow: create connected account → redirect to Stripe onboarding → handle return.
  */
 export async function connectRoutes(app: FastifyInstance) {
-  const stripe = new Stripe(config.STRIPE_SECRET_KEY!);
+  if (!config.STRIPE_SECRET_KEY) {
+    app.log.warn("STRIPE_SECRET_KEY not set — Stripe Connect routes will return 503");
+  }
+  const stripe = config.STRIPE_SECRET_KEY
+    ? new Stripe(config.STRIPE_SECRET_KEY)
+    : null;
+
+  function requireStripe(reply: import("fastify").FastifyReply): reply is import("fastify").FastifyReply {
+    if (!stripe) {
+      reply.status(503).send({
+        success: false,
+        error: { code: "STRIPE_NOT_CONFIGURED", message: "Stripe is not configured. Set STRIPE_SECRET_KEY." },
+      });
+      return false;
+    }
+    return true;
+  }
 
   // Start Stripe Connect onboarding — creates account + returns onboarding URL
   app.post("/stripe/onboard", { onRequest: authenticateApiKey }, async (request, reply) => {
+    if (!requireStripe(reply)) return;
+    const s = stripe!;
     const merchant = request.merchant!;
 
     try {
@@ -30,7 +48,7 @@ export async function connectRoutes(app: FastifyInstance) {
         accountId = existingConnection.stripeAccountId;
       } else {
         // Create a new connected account (Standard type)
-        const account = await stripe.accounts.create({
+        const account = await s.accounts.create({
           type: "standard",
           email: merchant.email,
           metadata: { merchantId: merchant.id },
@@ -49,7 +67,7 @@ export async function connectRoutes(app: FastifyInstance) {
       }
 
       // Create an Account Link for onboarding
-      const accountLink = await stripe.accountLinks.create({
+      const accountLink = await s.accountLinks.create({
         account: accountId,
         refresh_url: `${config.DASHBOARD_URL}/settings?stripe=refresh`,
         return_url: `${config.DASHBOARD_URL}/settings?stripe=success`,
@@ -92,6 +110,8 @@ export async function connectRoutes(app: FastifyInstance) {
 
   // Check & update connection status after onboarding return
   app.post("/stripe/verify", { onRequest: authenticateApiKey }, async (request, reply) => {
+    if (!requireStripe(reply)) return;
+    const s = stripe!;
     const merchant = request.merchant!;
 
     const connection = await db.query.stripeConnections.findFirst({
@@ -107,7 +127,7 @@ export async function connectRoutes(app: FastifyInstance) {
 
     try {
       // Fetch account from Stripe to check onboarding status
-      const account = await stripe.accounts.retrieve(connection.stripeAccountId);
+      const account = await s.accounts.retrieve(connection.stripeAccountId);
 
       const isOnboarded = account.details_submitted && account.charges_enabled;
 
@@ -188,6 +208,19 @@ export async function connectRoutes(app: FastifyInstance) {
           stripeAccountId: null,
           livemode: false,
           connectedAt: null,
+        },
+      });
+    }
+
+    if (!stripe) {
+      // Can't verify with Stripe, return cached data
+      return reply.send({
+        success: true,
+        data: {
+          connected: !!connection.stripeAccountId,
+          stripeAccountId: connection.stripeAccountId,
+          livemode: connection.livemode,
+          connectedAt: connection.connectedAt,
         },
       });
     }

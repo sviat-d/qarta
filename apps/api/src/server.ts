@@ -53,9 +53,17 @@ async function buildServer() {
       extra: { url: request.url, method: request.method },
     });
     app.log.error(error);
-    reply.status(error.statusCode ?? 500).send({
+    const statusCode = error.statusCode ?? 500;
+    reply.status(statusCode).send({
       success: false,
-      error: { code: "INTERNAL_ERROR", message: "Internal server error" },
+      error: {
+        code: error.code ?? "INTERNAL_ERROR",
+        message: statusCode < 500
+          ? error.message
+          : config.NODE_ENV === "development"
+            ? error.message
+            : "Internal server error",
+      },
     });
   });
 
