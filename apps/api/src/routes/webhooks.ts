@@ -129,14 +129,14 @@ export async function webhookRoutes(app: FastifyInstance) {
           };
 
           // Look up charge for amount/currency/customer
-          const charge = await getChargeDetails(efw.charge, stripeSecretKey);
+          const charge = await getChargeDetails(efw.charge, stripeSecretKey, event.account);
           const parsed = parseEarlyFraudWarning(
             efw,
             charge?.amount ?? 0,
             charge?.currency ?? "USD",
           );
 
-          await processAlert(app, merchantId, parsed, charge, stripeSecretKey);
+          await processAlert(app, merchantId, parsed, charge, stripeSecretKey, event.account);
           break;
         }
 
@@ -154,9 +154,9 @@ export async function webhookRoutes(app: FastifyInstance) {
           const parsed = parseDispute(dispute);
 
           // Get customer details from charge
-          const charge = await getChargeDetails(dispute.charge, stripeSecretKey);
+          const charge = await getChargeDetails(dispute.charge, stripeSecretKey, event.account);
 
-          await processAlert(app, merchantId, parsed, charge, stripeSecretKey);
+          await processAlert(app, merchantId, parsed, charge, stripeSecretKey, event.account);
           break;
         }
 
@@ -301,14 +301,14 @@ export async function webhookRoutes(app: FastifyInstance) {
             created: number;
           };
 
-          const charge = await getChargeDetails(efw.charge, stripeSecretKey);
+          const charge = await getChargeDetails(efw.charge, stripeSecretKey, event.account);
           const parsed = parseEarlyFraudWarning(
             efw,
             charge?.amount ?? 0,
             charge?.currency ?? "USD",
           );
 
-          await processAlert(app, merchantId, parsed, charge, stripeSecretKey);
+          await processAlert(app, merchantId, parsed, charge, stripeSecretKey, event.account);
           break;
         }
 
@@ -324,9 +324,9 @@ export async function webhookRoutes(app: FastifyInstance) {
           };
 
           const parsed = parseDispute(dispute);
-          const charge = await getChargeDetails(dispute.charge, stripeSecretKey);
+          const charge = await getChargeDetails(dispute.charge, stripeSecretKey, event.account);
 
-          await processAlert(app, merchantId, parsed, charge, stripeSecretKey);
+          await processAlert(app, merchantId, parsed, charge, stripeSecretKey, event.account);
           break;
         }
 
@@ -383,6 +383,7 @@ async function processAlert(
   parsed: ParsedAlert,
   chargeDetails: Awaited<ReturnType<typeof getChargeDetails>>,
   stripeSecretKey?: string,
+  stripeAccountId?: string,
 ) {
   // 1. Create alert in database
   const alertId = `alt_${nanoid()}`;
@@ -564,7 +565,7 @@ async function processAlert(
         stripeChargeId: parsed.stripeChargeId,
         amount: parsed.amount,
         reason: parsed.reasonRaw,
-      });
+      }, stripeAccountId);
 
       if (result.success) {
         await db
