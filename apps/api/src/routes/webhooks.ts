@@ -15,6 +15,7 @@ import { db, schema } from "../db/index.js";
 import { config } from "../config.js";
 import { sendNotification } from "../services/notifier.js";
 import { enqueueWebhook } from "../services/webhook-queue.js";
+import { handleBillingEvent } from "./billing.js";
 
 export async function webhookRoutes(app: FastifyInstance) {
   // Register raw body parser for signature verification
@@ -264,6 +265,11 @@ async function processWebhookSync(
       }
       case "charge.refunded":
         app.log.info({ type: event.type }, "External refund tracked");
+        break;
+      case "checkout.session.completed":
+      case "customer.subscription.updated":
+      case "customer.subscription.deleted":
+        await handleBillingEvent(event.type, event.data.object);
         break;
     }
 

@@ -107,6 +107,14 @@ export async function processWebhookJob(job: Job<WebhookJobData>): Promise<void>
       console.log(`External refund tracked${isConnect ? " (Connect)" : ""}`);
       break;
     }
+
+    case "checkout.session.completed":
+    case "customer.subscription.updated":
+    case "customer.subscription.deleted": {
+      const { handleBillingEvent } = await import("../routes/billing.js");
+      await handleBillingEvent(eventType, payload);
+      break;
+    }
   }
 
   // Mark as processed on success

@@ -92,6 +92,9 @@ export const STRIPE_EVENTS_OF_INTEREST = [
   "charge.dispute.updated",
   "charge.dispute.closed",
   "charge.refunded",
+  "checkout.session.completed",
+  "customer.subscription.updated",
+  "customer.subscription.deleted",
 ] as const;
 
 // --- Billing Plans ---
