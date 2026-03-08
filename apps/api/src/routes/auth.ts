@@ -269,9 +269,13 @@ export async function authRoutes(app: FastifyInstance) {
         .where(eq(schema.merchants.id, merchant.id));
 
       const resetUrl = `${config.DASHBOARD_URL}/reset-password?token=${token}`;
-      sendPasswordResetEmail(email, resetUrl);
 
-      app.log.info({ merchantId: merchant.id }, "Password reset requested");
+      try {
+        await sendPasswordResetEmail(email, resetUrl);
+        app.log.info({ merchantId: merchant.id }, "Password reset email sent");
+      } catch (err) {
+        app.log.error({ merchantId: merchant.id, err }, "Failed to send password reset email");
+      }
     }
 
     return reply.send({
