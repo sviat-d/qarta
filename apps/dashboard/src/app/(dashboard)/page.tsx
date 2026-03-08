@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { StatusBadge } from "@/components/status-badge";
-import { fetchOutcomes, fetchTimeseries, fetchAlerts, fetchMe } from "@/lib/api";
+import { fetchOutcomes, fetchTimeseries, fetchAlerts, fetchMe, fetchStripeStatus, fetchNotificationSettings } from "@/lib/api";
 import { useApi } from "@/lib/use-api";
 import type { Alert, OutcomesTimeSeries } from "@qarta/shared";
 
@@ -142,10 +142,16 @@ function AlertActivityChart({
 
 function ActivationChecklist() {
   const [open, setOpen] = useState(true);
+  const { data: stripeData } = useApi(() => fetchStripeStatus(), []);
+  const { data: notifData } = useApi(() => fetchNotificationSettings(), []);
+
+  const stripeConnected = stripeData?.data?.connected ?? false;
+  const notificationsConfigured = !!(notifData?.data?.slackEnabled || notifData?.data?.emailEnabled);
+
   const steps = [
-    { label: "Connect Stripe", done: true, href: "/settings" },
+    { label: "Connect Stripe", done: stripeConnected, href: "/settings" },
     { label: "Configure Auto-Refund Policy", done: false, href: "/policies" },
-    { label: "Set Up Notifications", done: false, href: "/settings" },
+    { label: "Set Up Notifications", done: notificationsConfigured, href: "/settings" },
     { label: "Invite Team Members", done: false, href: "#", soon: true },
   ];
   const completed = steps.filter((s) => s.done).length;
@@ -259,15 +265,59 @@ export default function OverviewPage() {
     [],
   );
   const { data: alertsData, isLoading: loadingAlerts } = useApi(
-    () => fetchAlerts({ page: 1, perPage: 8 }),
+    () => fetchAlerts({ page: 1, perPage: 100 }),
     [],
   );
   const { data: meData } = useApi(() => fetchMe(), []);
 
   const metrics = outcomesData?.data;
   const chartData: OutcomesTimeSeries[] = timeseriesData?.data ?? [];
-  const recentAlerts: Alert[] = alertsData?.data ?? [];
+  const allAlerts: Alert[] = alertsData?.data ?? [];
+  const recentAlerts = allAlerts.slice(0, 8);
   const merchantName = meData?.data?.name ?? "your dashboard";
+
+  // Compute alerts by source from real data
+  const sourceColorMap: Record<string, { label: string; dotColor: string; chartColor: string }> = {
+    stripe_efw: { label: "Early Fraud Warning", dotColor: "bg-purple-500", chartColor: "#8b5cf6" },
+    stripe_dispute: { label: "Dispute", dotColor: "bg-red-500", chartColor: "#ef4444" },
+    stripe_inquiry: { label: "Inquiry", dotColor: "bg-yellow-500", chartColor: "#f59e0b" },
+    manual: { label: "Manual", dotColor: "bg-gray-400", chartColor: "#9ca3af" },
+  };
+
+  const alertsBySource = allAlerts.reduce<Record<string, { count: number; volume: number }>>((acc, alert) => {
+    const entry = acc[alert.source] ?? { count: 0, volume: 0 };
+    entry.count++;
+    entry.volume += alert.amount;
+    acc[alert.source] = entry;
+    return acc;
+  }, {});
+
+  const sourceSegments = Object.entries(alertsBySource)
+    .map(([source, data]) => ({
+      source,
+      label: sourceColorMap[source]?.label ?? source,
+      count: data.count,
+      volume: data.volume,
+      dotColor: sourceColorMap[source]?.dotColor ?? "bg-gray-400",
+      chartColor: sourceColorMap[source]?.chartColor ?? "#9ca3af",
+    }))
+    .sort((a, b) => b.count - a.count);
+
+  // Compute alerts by reason from real data
+  const alertsByReason = allAlerts.reduce<Record<string, number>>((acc, alert) => {
+    const reason = alert.reasonCategory.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+    acc[reason] = (acc[reason] ?? 0) + 1;
+    return acc;
+  }, {});
+
+  const reasonEntries = Object.entries(alertsByReason)
+    .map(([label, count]) => ({
+      label,
+      count,
+      pct: allAlerts.length > 0 ? Math.round((count / allAlerts.length) * 1000) / 10 : 0,
+    }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 5);
 
   const hour = new Date().getHours();
   const greeting =
@@ -347,35 +397,40 @@ export default function OverviewPage() {
         <div className="rounded-xl border border-gray-200/80 bg-white p-6 shadow-sm">
           <h3 className="text-sm font-semibold text-gray-900">Alerts by Source</h3>
           <p className="text-xs text-gray-500">Distribution by alert origin</p>
-          {loadingOutcomes ? (
+          {loadingAlerts ? (
             <div className="flex items-center justify-center py-12">
               <div className="h-6 w-6 animate-spin rounded-full border-2 border-brand-600 border-t-transparent" />
+            </div>
+          ) : sourceSegments.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <div className="mt-4 flex justify-center">
+                <DonutChart segments={[]} />
+              </div>
+              <p className="mt-3 text-sm text-gray-400">No alerts yet</p>
             </div>
           ) : (
             <>
               <div className="mt-4 flex justify-center">
                 <DonutChart
-                  segments={[
-                    { label: "EFW", value: 98, color: "#8b5cf6" },
-                    { label: "Dispute", value: 56, color: "#ef4444" },
-                    { label: "Inquiry", value: 30, color: "#f59e0b" },
-                  ]}
+                  segments={sourceSegments.map((s) => ({
+                    label: s.label,
+                    value: s.count,
+                    color: s.chartColor,
+                  }))}
                 />
               </div>
               <div className="mt-4 space-y-2">
-                {[
-                  { label: "Early Fraud Warning", value: 98, volume: "$24,564", color: "bg-purple-500" },
-                  { label: "Dispute", value: 56, volume: "$17,126", color: "bg-red-500" },
-                  { label: "Inquiry", value: 30, volume: "$3,431", color: "bg-yellow-500" },
-                ].map((item) => (
-                  <div key={item.label} className="flex items-center justify-between text-sm">
+                {sourceSegments.map((item) => (
+                  <div key={item.source} className="flex items-center justify-between text-sm">
                     <div className="flex items-center gap-2">
-                      <div className={`h-2.5 w-2.5 rounded-sm ${item.color}`} />
+                      <div className={`h-2.5 w-2.5 rounded-sm ${item.dotColor}`} />
                       <span className="text-gray-600">{item.label}</span>
                     </div>
                     <div className="text-right">
-                      <span className="font-medium text-gray-900">{item.value}</span>
-                      <span className="ml-2 text-xs text-gray-400">{item.volume}</span>
+                      <span className="font-medium text-gray-900">{item.count}</span>
+                      <span className="ml-2 text-xs text-gray-400">
+                        ${(item.volume / 100).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                      </span>
                     </div>
                   </div>
                 ))}
@@ -393,9 +448,9 @@ export default function OverviewPage() {
           <p className="mb-4 text-xs text-gray-500">How alerts were resolved</p>
           <div className="space-y-3">
             {[
-              { label: "Auto-refunded", count: metrics?.alertsAutoResolved ?? 0, volume: "$40,997", color: "bg-brand-500" },
-              { label: "Escalated", count: metrics?.alertsEscalated ?? 0, volume: "$2,918", color: "bg-orange-400" },
-              { label: "Dismissed", count: metrics?.alertsDismissed ?? 0, volume: "$1,206", color: "bg-gray-400" },
+              { label: "Auto-refunded", count: metrics?.alertsAutoResolved ?? 0, color: "bg-brand-500" },
+              { label: "Escalated", count: metrics?.alertsEscalated ?? 0, color: "bg-orange-400" },
+              { label: "Dismissed", count: metrics?.alertsDismissed ?? 0, color: "bg-gray-400" },
             ].map((item) => {
               const total = metrics?.alertsTotal ?? 1;
               const pct = total > 0 ? ((item.count / total) * 100).toFixed(1) : "0";
@@ -408,8 +463,6 @@ export default function OverviewPage() {
                     </div>
                     <div className="text-right">
                       <span className="font-semibold text-gray-900">{item.count}</span>
-                      <span className="mx-1 text-gray-300">/</span>
-                      <span className="text-xs text-gray-400">{item.volume}</span>
                       <span className="ml-2 text-xs text-gray-400">({pct}%)</span>
                     </div>
                   </div>
@@ -442,28 +495,28 @@ export default function OverviewPage() {
         <div className="rounded-xl border border-gray-200/80 bg-white p-6 shadow-sm">
           <h3 className="text-sm font-semibold text-gray-900">Alerts by Reason</h3>
           <p className="mb-4 text-xs text-gray-500">Top dispute reason categories</p>
-          <div className="space-y-3">
-            {[
-              { label: "Fraudulent", count: 82, pct: 44.6 },
-              { label: "Subscription Canceled", count: 48, pct: 26.1 },
-              { label: "Product Not Received", count: 28, pct: 15.2 },
-              { label: "Duplicate", count: 16, pct: 8.7 },
-              { label: "General", count: 10, pct: 5.4 },
-            ].map((item) => (
-              <div key={item.label}>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-600">{item.label}</span>
-                  <span className="text-right">
-                    <span className="font-semibold text-gray-900">{item.count}</span>
-                    <span className="ml-2 text-xs text-gray-400">({item.pct}%)</span>
-                  </span>
+          {reasonEntries.length === 0 ? (
+            <div className="flex items-center justify-center py-8">
+              <p className="text-sm text-gray-400">No alert data yet</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {reasonEntries.map((item) => (
+                <div key={item.label}>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-600">{item.label}</span>
+                    <span className="text-right">
+                      <span className="font-semibold text-gray-900">{item.count}</span>
+                      <span className="ml-2 text-xs text-gray-400">({item.pct}%)</span>
+                    </span>
+                  </div>
+                  <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
+                    <div className="h-full rounded-full bg-brand-400" style={{ width: `${item.pct}%` }} />
+                  </div>
                 </div>
-                <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
-                  <div className="h-full rounded-full bg-brand-400" style={{ width: `${item.pct}%` }} />
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 

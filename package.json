@@ -18,7 +18,8 @@
     "db:migrate": "turbo db:migrate --filter=@qarta/api",
     "db:studio": "turbo db:studio --filter=@qarta/api",
     "db:seed": "turbo db:seed --filter=@qarta/api",
-    "test": "turbo test --filter=@qarta/api"
+    "test": "turbo test --filter=@qarta/api",
+    "test:e2e": "npm run test:e2e --workspace=apps/dashboard"
   },
   "devDependencies": {
     "@fontsource/poppins": "^5.2.7",
