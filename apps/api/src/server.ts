@@ -5,6 +5,7 @@ import rateLimit from "@fastify/rate-limit";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import { db } from "./db/index.js";
 import { config } from "./config.js";
+import { initSentry, Sentry } from "./sentry.js";
 import { healthRoutes } from "./routes/health.js";
 import { alertRoutes } from "./routes/payments.js";
 import { policyRoutes } from "./routes/policies.js";
@@ -42,6 +43,18 @@ async function buildServer() {
     timeWindow: "1 minute",
   });
 
+  // Global error handler — report to Sentry
+  app.setErrorHandler((error, request, reply) => {
+    Sentry.captureException(error, {
+      extra: { url: request.url, method: request.method },
+    });
+    app.log.error(error);
+    reply.status(error.statusCode ?? 500).send({
+      success: false,
+      error: { code: "INTERNAL_ERROR", message: "Internal server error" },
+    });
+  });
+
   // Routes
   await app.register(healthRoutes, { prefix: "/" });
   await app.register(alertRoutes, { prefix: "/v1/alerts" });
@@ -64,6 +77,8 @@ async function runMigrations() {
 }
 
 async function start() {
+  initSentry();
+
   try {
     await runMigrations();
   } catch (err) {

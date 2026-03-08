@@ -20,6 +20,8 @@ const envSchema = z.object({
   STRIPE_CONNECT_WEBHOOK_SECRET: z.string().optional(), // for Connect account events
   STRIPE_CLIENT_ID: z.string().optional(), // for OAuth Connect
 
+  SENTRY_DSN: z.string().url().optional(),
+
   API_KEY_SALT: z.string().default("dev-salt-change-in-production"),
 
   // Email notifications
