@@ -61,13 +61,18 @@ async function apiFetch<T>(
 
   const { params: _, ...fetchOptions } = options ?? {};
 
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${apiKey}`,
+    ...fetchOptions?.headers as Record<string, string>,
+  };
+  // Only set Content-Type for requests with a body
+  if (fetchOptions?.body) {
+    headers["Content-Type"] = "application/json";
+  }
+
   const response = await fetch(url.toString(), {
     ...fetchOptions,
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-      ...fetchOptions?.headers,
-    },
+    headers,
   });
 
   const data = await response.json();
