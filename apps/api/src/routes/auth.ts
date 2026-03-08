@@ -7,6 +7,7 @@ import { z } from "zod";
 import { authenticateApiKey, hashApiKey } from "../middleware/auth.js";
 import { config } from "../config.js";
 import { db, schema } from "../db/index.js";
+import { sendPasswordResetEmail } from "../services/email-notifier.js";
 
 const scryptAsync = promisify(scrypt);
 
@@ -36,6 +37,15 @@ const registerSchema = z.object({
 const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
+});
+
+const forgotPasswordSchema = z.object({
+  email: z.string().email(),
+});
+
+const resetPasswordSchema = z.object({
+  token: z.string().min(1),
+  password: z.string().min(8).max(128),
 });
 
 /**
@@ -224,6 +234,104 @@ export async function authRoutes(app: FastifyInstance) {
           stripeAccountId: merchant.stripeAccountId,
         },
       },
+    });
+  });
+
+  // Request password reset
+  app.post("/forgot-password", authRateLimit, async (request, reply) => {
+    const parsed = forgotPasswordSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.status(400).send({
+        success: false,
+        error: { code: "VALIDATION_ERROR", message: "Invalid email" },
+      });
+    }
+
+    const { email } = parsed.data;
+
+    // Always return success to prevent email enumeration
+    const merchant = await db.query.merchants.findFirst({
+      where: eq(schema.merchants.email, email),
+    });
+
+    if (merchant) {
+      const token = randomBytes(32).toString("hex");
+      const tokenHash = createHash("sha256").update(token).digest("hex");
+      const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+      await db
+        .update(schema.merchants)
+        .set({
+          passwordResetToken: tokenHash,
+          passwordResetExpiresAt: expiresAt,
+          updatedAt: new Date(),
+        })
+        .where(eq(schema.merchants.id, merchant.id));
+
+      const resetUrl = `${config.DASHBOARD_URL}/reset-password?token=${token}`;
+      sendPasswordResetEmail(email, resetUrl);
+
+      app.log.info({ merchantId: merchant.id }, "Password reset requested");
+    }
+
+    return reply.send({
+      success: true,
+      data: { message: "If an account with that email exists, a reset link has been sent." },
+    });
+  });
+
+  // Reset password with token
+  app.post("/reset-password", authRateLimit, async (request, reply) => {
+    const parsed = resetPasswordSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.status(400).send({
+        success: false,
+        error: {
+          code: "VALIDATION_ERROR",
+          message: "Invalid reset data",
+          details: parsed.error.flatten().fieldErrors,
+        },
+      });
+    }
+
+    const { token, password } = parsed.data;
+    const tokenHash = createHash("sha256").update(token).digest("hex");
+
+    const merchant = await db.query.merchants.findFirst({
+      where: eq(schema.merchants.passwordResetToken, tokenHash),
+    });
+
+    if (
+      !merchant ||
+      !merchant.passwordResetExpiresAt ||
+      merchant.passwordResetExpiresAt < new Date()
+    ) {
+      return reply.status(400).send({
+        success: false,
+        error: {
+          code: "INVALID_TOKEN",
+          message: "Reset link is invalid or has expired",
+        },
+      });
+    }
+
+    const passwordHash = await hashPassword(password);
+
+    await db
+      .update(schema.merchants)
+      .set({
+        passwordHash,
+        passwordResetToken: null,
+        passwordResetExpiresAt: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(schema.merchants.id, merchant.id));
+
+    app.log.info({ merchantId: merchant.id }, "Password reset completed");
+
+    return reply.send({
+      success: true,
+      data: { message: "Password has been reset successfully" },
     });
   });
 

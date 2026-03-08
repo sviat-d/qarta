@@ -64,6 +64,8 @@ export const merchants = pgTable(
     email: text("email").notNull().unique(),
     passwordHash: text("password_hash"),
     apiKeyHash: text("api_key_hash").notNull(),
+    passwordResetToken: text("password_reset_token"),
+    passwordResetExpiresAt: timestamp("password_reset_expires_at"),
     stripeAccountId: text("stripe_account_id"),
     onboardedAt: timestamp("onboarded_at"),
     createdAt: timestamp("created_at").defaultNow().notNull(),

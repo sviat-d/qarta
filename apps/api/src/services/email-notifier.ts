@@ -141,6 +141,65 @@ function buildEmailContent(event: EmailNotificationEvent): {
   return { subject: `[Qarta] ${subject}`, html };
 }
 
+/**
+ * Send a password reset email with a one-time link.
+ * Fire-and-forget — errors are logged but don't block the caller.
+ */
+export async function sendPasswordResetEmail(
+  to: string,
+  resetUrl: string,
+): Promise<void> {
+  try {
+    const apiKey = process.env.EMAIL_API_KEY;
+    const provider = process.env.EMAIL_PROVIDER ?? "resend";
+    const fromAddress = process.env.EMAIL_FROM ?? "alerts@qarta.eu";
+
+    if (!apiKey) {
+      console.warn("EMAIL_API_KEY not set, skipping password reset email");
+      return;
+    }
+
+    const subject = "[Qarta] Reset your password";
+    const html = `
+<!DOCTYPE html>
+<html>
+<body style="margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f9fafb;">
+  <div style="max-width:560px;margin:0 auto;padding:32px 16px;">
+    <div style="background:#fff;border-radius:8px;border:1px solid #e5e7eb;overflow:hidden;">
+      <div style="background:#6366f1;padding:16px 24px;">
+        <h2 style="margin:0;color:#fff;font-size:18px;">Reset Your Password</h2>
+      </div>
+      <div style="padding:24px;">
+        <p style="margin:0 0 16px;color:#374151;">You requested a password reset for your Qarta account. Click the button below to set a new password.</p>
+        <div style="text-align:center;margin:24px 0;">
+          <a href="${resetUrl}" style="display:inline-block;background:#6366f1;color:#fff;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;">Reset Password</a>
+        </div>
+        <p style="margin:0 0 8px;color:#6b7280;font-size:13px;">This link expires in 1 hour. If you didn't request this, you can safely ignore this email.</p>
+        <p style="margin:0;color:#9ca3af;font-size:12px;word-break:break-all;">${resetUrl}</p>
+      </div>
+      <div style="padding:12px 24px;background:#f9fafb;border-top:1px solid #e5e7eb;">
+        <p style="margin:0;font-size:12px;color:#9ca3af;">Qarta Chargeback Deflection</p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>`.trim();
+
+    switch (provider) {
+      case "resend":
+        await sendViaResend(apiKey, fromAddress, to, subject, html);
+        break;
+      case "sendgrid":
+        await sendViaSendGrid(apiKey, fromAddress, to, subject, html);
+        break;
+      default:
+        console.warn(`Unknown email provider: ${provider}`);
+    }
+  } catch (err) {
+    console.error("Password reset email error:", err);
+  }
+}
+
 async function sendViaResend(
   apiKey: string,
   from: string,

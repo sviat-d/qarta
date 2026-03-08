@@ -201,6 +201,43 @@ export async function loginMerchant(body: {
   return data;
 }
 
+export async function forgotPassword(body: {
+  email: string;
+}): Promise<ApiResponse<{ message: string }>> {
+  const response = await fetch(`${API_BASE}/v1/auth/forgot-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new ApiError(
+      data?.error?.code ?? "UNKNOWN_ERROR",
+      data?.error?.message ?? "Request failed",
+    );
+  }
+  return data;
+}
+
+export async function resetPassword(body: {
+  token: string;
+  password: string;
+}): Promise<ApiResponse<{ message: string }>> {
+  const response = await fetch(`${API_BASE}/v1/auth/reset-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new ApiError(
+      data?.error?.code ?? "UNKNOWN_ERROR",
+      data?.error?.message ?? "Password reset failed",
+    );
+  }
+  return data;
+}
+
 export async function fetchMe(): Promise<
   ApiResponse<{ id: string; name: string; email: string; stripeAccountId: string | null }>
 > {

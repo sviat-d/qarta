@@ -29,6 +29,9 @@ const envSchema = z.object({
   EMAIL_API_KEY: z.string().optional(),
   EMAIL_FROM: z.string().default("alerts@qarta.eu"),
 
+  // Dashboard URL for password reset links
+  DASHBOARD_URL: z.string().default("https://app.qarta.eu"),
+
   // Comma-separated list of allowed CORS origins
   CORS_ORIGINS: z.string().default("https://qarta.eu"),
 });
