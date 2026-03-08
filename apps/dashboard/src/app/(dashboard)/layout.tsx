@@ -39,14 +39,14 @@ export default function DashboardLayout({
         {isDemo && (
           <div className="flex items-center justify-between border-b border-brand-200 bg-brand-50 px-8 py-2.5">
             <p className="text-sm text-brand-800">
-              You&apos;re in demo mode. Connect your Stripe account to start
-              preventing chargebacks.
+              You&apos;re in demo mode. Data shown is simulated.
+              Sign up to connect your real Stripe account.
             </p>
             <Link
-              href="/settings"
+              href="/signup"
               className="whitespace-nowrap rounded-md bg-brand-600 px-3 py-1 text-xs font-medium text-white hover:bg-brand-700"
             >
-              Connect Stripe
+              Sign Up
             </Link>
           </div>
         )}
