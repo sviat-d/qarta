@@ -18,7 +18,7 @@ const envSchema = z.object({
   STRIPE_SECRET_KEY: z.string().optional(),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
   STRIPE_CONNECT_WEBHOOK_SECRET: z.string().optional(), // for Connect account events
-  STRIPE_CLIENT_ID: z.string().optional(), // for OAuth Connect
+  // STRIPE_CLIENT_ID removed — using Account Links instead of OAuth
 
   SENTRY_DSN: z.string().url().optional(),
 

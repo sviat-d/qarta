@@ -213,15 +213,14 @@ async function processWebhookSync(
   isConnect: boolean,
 ) {
   let merchantId: string | null = null;
-  let stripeSecretKey = isConnect ? undefined : config.STRIPE_SECRET_KEY;
+  const stripeAccountId = event.account;
 
-  if (event.account) {
+  if (stripeAccountId) {
     const connection = await db.query.stripeConnections.findFirst({
-      where: eq(schema.stripeConnections.stripeAccountId, event.account),
+      where: eq(schema.stripeConnections.stripeAccountId, stripeAccountId),
     });
     if (connection) {
       merchantId = connection.merchantId;
-      stripeSecretKey = connection.accessToken;
     }
   }
 
@@ -240,16 +239,16 @@ async function processWebhookSync(
     switch (event.type) {
       case "radar.early_fraud_warning.created": {
         const efw = event.data.object as { id: string; actionable: boolean; charge: string; payment_intent?: string; created: number };
-        const charge = await getChargeDetails(efw.charge, stripeSecretKey, event.account);
+        const charge = await getChargeDetails(efw.charge, stripeAccountId);
         const parsed = parseEarlyFraudWarning(efw, charge?.amount ?? 0, charge?.currency ?? "USD");
-        await processAlertPipeline(merchantId, parsed, charge, stripeSecretKey, event.account);
+        await processAlertPipeline(merchantId, parsed, charge, stripeAccountId);
         break;
       }
       case "charge.dispute.created": {
         const dispute = event.data.object as { id: string; charge: string; payment_intent?: string; amount: number; currency: string; reason: string; status: string };
         const parsed = parseDispute(dispute);
-        const charge = await getChargeDetails(dispute.charge, stripeSecretKey, event.account);
-        await processAlertPipeline(merchantId, parsed, charge, stripeSecretKey, event.account);
+        const charge = await getChargeDetails(dispute.charge, stripeAccountId);
+        await processAlertPipeline(merchantId, parsed, charge, stripeAccountId);
         break;
       }
       case "charge.dispute.updated":
@@ -287,7 +286,6 @@ export async function processAlertPipeline(
   merchantId: string,
   parsed: ParsedAlert,
   chargeDetails: Awaited<ReturnType<typeof getChargeDetails>>,
-  stripeSecretKey?: string,
   stripeAccountId?: string,
 ) {
   // 1. Create alert in database
@@ -417,13 +415,13 @@ export async function processAlertPipeline(
 
   switch (decision.action.type) {
     case "auto_refund": {
-      if (!parsed.stripeChargeId || !stripeSecretKey) {
+      if (!parsed.stripeChargeId) {
         await db
           .update(schema.alerts)
           .set({ status: "escalated", updatedAt: new Date() })
           .where(eq(schema.alerts.id, alertId));
         await writeAuditLog(merchantId, alertId, undefined, "system", "refund_skipped", {
-          reason: "missing_charge_id_or_key",
+          reason: "missing_charge_id",
         });
         return;
       }
@@ -466,7 +464,7 @@ export async function processAlertPipeline(
         canceledSubscription: false,
       });
 
-      const result = await executeRefund(stripeSecretKey, {
+      const result = await executeRefund({
         stripeChargeId: parsed.stripeChargeId,
         amount: parsed.amount,
         reason: parsed.reasonRaw,

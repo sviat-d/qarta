@@ -7,134 +7,167 @@ import { config } from "../config.js";
 import { db, schema } from "../db/index.js";
 
 /**
- * Stripe Connect OAuth routes — merchant onboarding.
- * Flow: merchant clicks "Connect Stripe" → redirected to Stripe OAuth → callback stores tokens.
+ * Stripe Connect routes — merchant onboarding via Account Links.
+ * Flow: create connected account → redirect to Stripe onboarding → handle return.
  */
 export async function connectRoutes(app: FastifyInstance) {
-  // Initiate Stripe OAuth — requires auth to know which merchant
-  app.get("/stripe", { onRequest: authenticateApiKey }, async (request, reply) => {
+  const stripe = new Stripe(config.STRIPE_SECRET_KEY!);
+
+  // Start Stripe Connect onboarding — creates account + returns onboarding URL
+  app.post("/stripe/onboard", { onRequest: authenticateApiKey }, async (request, reply) => {
     const merchant = request.merchant!;
 
-    if (!config.STRIPE_CLIENT_ID) {
-      return reply.status(500).send({
-        success: false,
-        error: { code: "CONFIG_ERROR", message: "Stripe Connect is not configured" },
-      });
-    }
-
-    const state = `${merchant.id}:${nanoid(16)}`;
-
-    const authorizeUrl = new URL("https://connect.stripe.com/oauth/authorize");
-    authorizeUrl.searchParams.set("response_type", "code");
-    authorizeUrl.searchParams.set("client_id", config.STRIPE_CLIENT_ID);
-    authorizeUrl.searchParams.set("scope", "read_write");
-    authorizeUrl.searchParams.set("state", state);
-
-    return reply.send({
-      success: true,
-      data: { url: authorizeUrl.toString(), state },
-    });
-  });
-
-  // Handle Stripe OAuth callback — no auth header (redirect from Stripe)
-  // Redirects user's browser back to the dashboard after processing.
-  app.get<{
-    Querystring: { code?: string; state?: string; error?: string; error_description?: string };
-  }>("/stripe/callback", async (request, reply) => {
-    const { code, state, error, error_description } = request.query;
-    const dashboardSettings = `${config.DASHBOARD_URL}/settings`;
-
-    if (error) {
-      const msg = encodeURIComponent(error_description ?? error ?? "OAuth error");
-      return reply.redirect(`${dashboardSettings}?stripe=error&message=${msg}`);
-    }
-
-    if (!code || !state) {
-      return reply.redirect(`${dashboardSettings}?stripe=error&message=${encodeURIComponent("Missing code or state parameter")}`);
-    }
-
-    // Extract merchant ID from state
-    const merchantId = state.split(":")[0];
-    if (!merchantId) {
-      return reply.redirect(`${dashboardSettings}?stripe=error&message=${encodeURIComponent("Invalid state parameter")}`);
-    }
-
-    const merchant = await db.query.merchants.findFirst({
-      where: eq(schema.merchants.id, merchantId),
-    });
-
-    if (!merchant) {
-      return reply.redirect(`${dashboardSettings}?stripe=error&message=${encodeURIComponent("Merchant not found")}`);
-    }
-
     try {
-      // Exchange authorization code for access token
-      const stripe = new Stripe(config.STRIPE_SECRET_KEY!);
-      const response = await stripe.oauth.token({
-        grant_type: "authorization_code",
-        code,
-      });
-
-      if (!response.stripe_user_id) {
-        return reply.redirect(`${dashboardSettings}?stripe=error&message=${encodeURIComponent("No Stripe account ID returned")}`);
-      }
-
-      // Upsert Stripe connection
+      // Check if merchant already has a connected account
       const existingConnection = await db.query.stripeConnections.findFirst({
-        where: eq(schema.stripeConnections.merchantId, merchantId),
+        where: eq(schema.stripeConnections.merchantId, merchant.id),
       });
+
+      let accountId: string;
 
       if (existingConnection) {
-        await db
-          .update(schema.stripeConnections)
-          .set({
-            stripeAccountId: response.stripe_user_id,
-            accessToken: response.access_token!,
-            refreshToken: response.refresh_token ?? null,
-            scope: response.scope ?? "read_write",
-            livemode: response.livemode ?? false,
-            connectedAt: new Date(),
-          })
-          .where(eq(schema.stripeConnections.id, existingConnection.id));
+        // Re-use existing account — merchant may need to finish onboarding
+        accountId = existingConnection.stripeAccountId;
       } else {
+        // Create a new connected account (Standard type)
+        const account = await stripe.accounts.create({
+          type: "standard",
+          email: merchant.email,
+          metadata: { merchantId: merchant.id },
+        });
+        accountId = account.id;
+
+        // Store the connection
         await db.insert(schema.stripeConnections).values({
           id: `sc_${nanoid()}`,
-          merchantId,
-          stripeAccountId: response.stripe_user_id,
-          accessToken: response.access_token!,
-          refreshToken: response.refresh_token ?? null,
-          scope: response.scope ?? "read_write",
-          livemode: response.livemode ?? false,
+          merchantId: merchant.id,
+          stripeAccountId: accountId,
+          accessToken: "n/a", // Not used with Account Links
+          scope: "read_write",
+          livemode: false,
         });
       }
 
-      // Update merchant's Stripe account ID
-      await db
-        .update(schema.merchants)
-        .set({
-          stripeAccountId: response.stripe_user_id,
-          onboardedAt: merchant.onboardedAt ?? new Date(),
-          updatedAt: new Date(),
-        })
-        .where(eq(schema.merchants.id, merchantId));
-
-      // Audit log
-      await db.insert(schema.auditLog).values({
-        id: `aud_${nanoid()}`,
-        merchantId,
-        actor: "user",
-        event: "stripe_connected",
-        details: {
-          stripeAccountId: response.stripe_user_id,
-          livemode: response.livemode,
-        },
+      // Create an Account Link for onboarding
+      const accountLink = await stripe.accountLinks.create({
+        account: accountId,
+        refresh_url: `${config.DASHBOARD_URL}/settings?stripe=refresh`,
+        return_url: `${config.DASHBOARD_URL}/settings?stripe=success`,
+        type: "account_onboarding",
       });
 
-      app.log.info({ merchantId, stripeAccountId: response.stripe_user_id }, "Stripe connected via OAuth");
-      return reply.redirect(`${dashboardSettings}?stripe=success`);
+      return reply.send({
+        success: true,
+        data: { url: accountLink.url },
+      });
     } catch (err) {
-      app.log.error({ err }, "Stripe OAuth token exchange failed");
-      return reply.redirect(`${dashboardSettings}?stripe=error&message=${encodeURIComponent("Failed to connect Stripe account")}`);
+      app.log.error({ err }, "Failed to create Stripe Account Link");
+      return reply.status(500).send({
+        success: false,
+        error: { code: "STRIPE_ERROR", message: "Failed to start Stripe onboarding" },
+      });
+    }
+  });
+
+  // Legacy GET endpoint — redirect to POST onboard
+  app.get("/stripe", { onRequest: authenticateApiKey }, async (request, reply) => {
+    return reply.status(301).send({
+      success: false,
+      error: {
+        code: "DEPRECATED",
+        message: "Use POST /v1/connect/stripe/onboard instead",
+      },
+    });
+  });
+
+  // Handle return from Stripe onboarding — verify account status
+  app.get<{
+    Querystring: { account_id?: string };
+  }>("/stripe/callback", async (request, reply) => {
+    // Account Links don't use a callback — the return_url goes directly to the dashboard.
+    // This endpoint is kept for backwards compatibility but redirects to dashboard.
+    return reply.redirect(`${config.DASHBOARD_URL}/settings`);
+  });
+
+  // Check & update connection status after onboarding return
+  app.post("/stripe/verify", { onRequest: authenticateApiKey }, async (request, reply) => {
+    const merchant = request.merchant!;
+
+    const connection = await db.query.stripeConnections.findFirst({
+      where: eq(schema.stripeConnections.merchantId, merchant.id),
+    });
+
+    if (!connection) {
+      return reply.status(404).send({
+        success: false,
+        error: { code: "NOT_FOUND", message: "No Stripe connection found" },
+      });
+    }
+
+    try {
+      // Fetch account from Stripe to check onboarding status
+      const account = await stripe.accounts.retrieve(connection.stripeAccountId);
+
+      const isOnboarded = account.details_submitted && account.charges_enabled;
+
+      if (isOnboarded) {
+        // Update connection details
+        await db
+          .update(schema.stripeConnections)
+          .set({
+            livemode: account.charges_enabled ?? false,
+            connectedAt: new Date(),
+          })
+          .where(eq(schema.stripeConnections.id, connection.id));
+
+        // Update merchant
+        const fullMerchant = await db.query.merchants.findFirst({
+          where: eq(schema.merchants.id, merchant.id),
+        });
+        await db
+          .update(schema.merchants)
+          .set({
+            stripeAccountId: connection.stripeAccountId,
+            onboardedAt: fullMerchant?.onboardedAt ?? new Date(),
+            updatedAt: new Date(),
+          })
+          .where(eq(schema.merchants.id, merchant.id));
+
+        // Audit log
+        await db.insert(schema.auditLog).values({
+          id: `aud_${nanoid()}`,
+          merchantId: merchant.id,
+          actor: "user",
+          event: "stripe_connected",
+          details: {
+            stripeAccountId: connection.stripeAccountId,
+            chargesEnabled: account.charges_enabled,
+            payoutsEnabled: account.payouts_enabled,
+          },
+        });
+
+        app.log.info(
+          { merchantId: merchant.id, stripeAccountId: connection.stripeAccountId },
+          "Stripe connected via Account Links",
+        );
+      }
+
+      return reply.send({
+        success: true,
+        data: {
+          connected: isOnboarded,
+          stripeAccountId: connection.stripeAccountId,
+          chargesEnabled: account.charges_enabled ?? false,
+          payoutsEnabled: account.payouts_enabled ?? false,
+          detailsSubmitted: account.details_submitted ?? false,
+        },
+      });
+    } catch (err) {
+      app.log.error({ err }, "Failed to verify Stripe account");
+      return reply.status(500).send({
+        success: false,
+        error: { code: "STRIPE_ERROR", message: "Failed to verify Stripe account status" },
+      });
     }
   });
 
@@ -146,14 +179,44 @@ export async function connectRoutes(app: FastifyInstance) {
       where: eq(schema.stripeConnections.merchantId, merchant.id),
     });
 
-    return reply.send({
-      success: true,
-      data: {
-        connected: !!connection,
-        stripeAccountId: connection?.stripeAccountId ?? null,
-        livemode: connection?.livemode ?? false,
-        connectedAt: connection?.connectedAt ?? null,
-      },
-    });
+    if (!connection) {
+      return reply.send({
+        success: true,
+        data: {
+          connected: false,
+          stripeAccountId: null,
+          livemode: false,
+          connectedAt: null,
+        },
+      });
+    }
+
+    // Optionally check live status from Stripe
+    try {
+      const account = await stripe.accounts.retrieve(connection.stripeAccountId);
+      return reply.send({
+        success: true,
+        data: {
+          connected: !!(account.details_submitted && account.charges_enabled),
+          stripeAccountId: connection.stripeAccountId,
+          livemode: connection.livemode,
+          chargesEnabled: account.charges_enabled ?? false,
+          payoutsEnabled: account.payouts_enabled ?? false,
+          detailsSubmitted: account.details_submitted ?? false,
+          connectedAt: connection.connectedAt,
+        },
+      });
+    } catch {
+      // If we can't reach Stripe, return cached data
+      return reply.send({
+        success: true,
+        data: {
+          connected: !!connection.stripeAccountId,
+          stripeAccountId: connection.stripeAccountId,
+          livemode: connection.livemode,
+          connectedAt: connection.connectedAt,
+        },
+      });
+    }
   });
 }

@@ -6,7 +6,6 @@ import type { Alert, PaginatedResponse, ApiResponse } from "@qarta/shared";
 import { authenticateApiKey } from "../middleware/auth.js";
 import { executeRefund } from "../services/refund-executor.js";
 import { db, schema } from "../db/index.js";
-import { config } from "../config.js";
 
 const listQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
@@ -147,21 +146,17 @@ export async function alertRoutes(app: FastifyInstance) {
     }
 
     if (body.action === "refund") {
-      if (!alert.stripeChargeId || !config.STRIPE_SECRET_KEY) {
+      if (!alert.stripeChargeId) {
         return reply.status(400).send({
           success: false,
-          error: { code: "BAD_REQUEST", message: "Cannot refund: missing charge ID or Stripe key" },
+          error: { code: "BAD_REQUEST", message: "Cannot refund: missing charge ID" },
         });
       }
 
-      // Get Stripe key from connection if available
-      let stripeKey = config.STRIPE_SECRET_KEY;
+      // Get connected account ID for the merchant
       const connection = await db.query.stripeConnections.findFirst({
         where: eq(schema.stripeConnections.merchantId, merchant.id),
       });
-      if (connection) {
-        stripeKey = connection.accessToken;
-      }
 
       const actionId = `act_${nanoid()}`;
       await db.insert(schema.refundActions).values({
@@ -175,11 +170,11 @@ export async function alertRoutes(app: FastifyInstance) {
         canceledSubscription: false,
       });
 
-      const result = await executeRefund(stripeKey!, {
+      const result = await executeRefund({
         stripeChargeId: alert.stripeChargeId,
         amount: alert.amount,
         reason: body.note ?? alert.reasonRaw ?? undefined,
-      });
+      }, connection?.stripeAccountId);
 
       if (result.success) {
         await db
